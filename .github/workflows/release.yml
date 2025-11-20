@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - feature/gha-release
+    tags:
+      - "v*"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+  
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      - name: Node CI
+        run: npm ci
+      - name: Package Extension
+        run: npx @vscode/vsce package
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: vscode-extension-*.vsix
+          retention-days: 30
+      - name: Create Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: sl-external-editor-*.vsix
+      
