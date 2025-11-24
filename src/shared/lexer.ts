@@ -751,7 +751,7 @@ export class Lexer {
 
         const startLine = this.context.lineNumber;
         const startColumn = this.context.columnNumber;
-        
+
         const text = this.readMutliCharBlockStart(delimiter);
 
         this.context.inBlockComment = delimiter;
