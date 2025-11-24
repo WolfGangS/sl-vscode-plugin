@@ -114,9 +114,14 @@ export class SelenePlugin extends BasePlugin {
             let seleneToml: any = {};
             seleneToml = (await host?.readTOML(tomlPath)) || {};
             const fullConfig = normalizeJoinPath(configPath, `${basename}`);
-            seleneToml.std = "roblox+" + fullConfig;
+            const relativeConfig = vscode.workspace.asRelativePath(fullConfig);
+            seleneToml.std = "luau+" + relativeConfig;
             saved = await host.writeTOML(tomlPath, seleneToml);
         }
+
+        const selene = vscode.workspace.getConfiguration("selene");
+        await selene.update("warnRoblox", false);
+
         return saved;
     }
 }
@@ -180,7 +185,10 @@ export class LuaLSPPlugin extends BasePlugin {
         await luaulsp.update("types.definitionFiles", luaulspDefs);
         await luaulsp.update("types.documentationFiles", [docsFile]);
         await luaulsp.update("platform.type", "standard");
+        await luaulsp.update("sourcemap.enabled", false);
         await new Promise((resolve) => setTimeout(resolve, 100));
+        // Execute luau-lsp's command to realod the language sever
+        await vscode.commands.executeCommand("luau-lsp.reloadServer")
     }
 
     private async saveLuauLSPDefs(
