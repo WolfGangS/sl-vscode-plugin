@@ -88,17 +88,3 @@ jobs:
 
     - name: Package extension
       run: vsce package
-
-    - name: Get package filename
-      id: package
-      run: |
-        PACKAGE_FILE=$(ls *.vsix | head -1)
-        echo "filename=$PACKAGE_FILE" >> $GITHUB_OUTPUT
-        echo "name=$(basename "$PACKAGE_FILE" .vsix)" >> $GITHUB_OUTPUT
-
-    - name: Upload VSIX artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: vscode-extension-${{ steps.version.outputs.release_type }}-${{ steps.version.outputs.sha_short }}
-        path: ${{ steps.package.outputs.filename }}
-        retention-days: 30
