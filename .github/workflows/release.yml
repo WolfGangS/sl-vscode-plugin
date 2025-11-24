@@ -3,9 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - feature/gha-release
-    tags:
-      - "v*"
+      - wolfgang/develop
 
 jobs:
   ci:
@@ -19,11 +17,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.x"
-      - name: Check version matches tag
+      - id: version
+        name: Make version
         run: |
-          TAG=${{ github.ref_name }}
-          echo "$TAG"
-          exit 1
+          CURRENT_DATE=$(date "+%Y.%m.%d")
+          NEW_VERSION=${CURRENT_DATE}-${GITHUB_RUN_NUMBER}
+          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+      - name: Set version
+        run: |
+          npm version "${{steps.version.outputs.version}}" --no-git-tag-version
       - name: Node CI
         run: npm ci
       - name: Package Extension
@@ -37,6 +39,6 @@ jobs:
         id: create_release
         uses: ncipollo/release-action@v1
         with:
-          tag: test
+          tag: ${{steps.version.outputs.version}}
           artifacts: sl-vscode-edit-*.vsix
       
