@@ -1,10 +1,10 @@
----
 name: pre-commit
 
 on:
-  pull_request:
   push:
-    branches: [main, develop, wolfgang/develop]
+    branches: [ "*" ]
+  pull_request:
+    branches: [wolfgang/develop]
 
 permissions:
   id-token: write

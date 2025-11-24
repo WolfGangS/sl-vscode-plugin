@@ -2,8 +2,7 @@ name: Release
 
 on:
   push:
-    branches:
-      - wolfgang/develop
+    branches: [wolfgang/develop]
 
 jobs:
   ci:
