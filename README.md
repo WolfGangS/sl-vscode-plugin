@@ -440,6 +440,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version History
 
+### v1.0.1
+- Fix for incorrect luau-lsp config use
+- Switch from class to extern syntax for luau-lsp defs and move DetecteEvent
+- Fix selene yaml gen and toml config
+- Fix for selene yaml self on : calls
+- Fix default data to have eventname for LLEvents:off
+- Make saves of included/required files trigger 'saves' on actively sync'd file
+- Fix precomp require generating invalid code for files with no trailing line ending
+- Add fallback lookup for matching file, if the default glob finds nothing
+- Add config to enable/disable the extension, and a command to do it quickly
+- Update Package Name Across Project to fix README Links and be Consistent with Repo Name
+- Implement optional check to prevent saving over a file with identicle content
+
 ### v1.0.0 (Initial Release)
 - Advanced LSL and SLua preprocessing
 - WebSocket viewer integration
@@ -447,4 +460,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Macro processing and conditional compilation
 - Include guards and circular protection
 - Real-time script synchronization
-
