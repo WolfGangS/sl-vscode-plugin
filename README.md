@@ -323,7 +323,6 @@ return {
 **main.luau**
 ```lua
 local inventory = require("services/inventory")
--- Logger is automatically available through nested require
 
 function onTouch(avatar)
     local coinCount = inventory.getItemCount("coins")
@@ -448,3 +447,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Macro processing and conditional compilation
 - Include guards and circular protection
 - Real-time script synchronization
+
