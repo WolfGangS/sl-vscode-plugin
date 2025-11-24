@@ -32,11 +32,11 @@ jobs:
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
-          path: sl-vscode-edit-*.vsix
+          path: sl-vscode-plugin-*.vsix
           retention-days: 30
       - name: Create Release
         id: create_release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{steps.version.outputs.version}}
-          artifacts: sl-vscode-edit-*.vsix
+          artifacts: sl-vscode-plugin-*.vsix
