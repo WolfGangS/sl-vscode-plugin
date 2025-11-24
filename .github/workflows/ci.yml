@@ -3,9 +3,9 @@ name: CI
 on:
   push:
     branches: [ "*" ]
-    tags: [ "v*" ]
   pull_request:
-    branches: [ main, develop, wolfgang/develop ]
+    branches: [ wolfgang/develop ]
+  workflow_call:
 
 jobs:
   test:
@@ -111,35 +111,3 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-
-    steps:
-    - name: Get version from tag
-      id: version
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-    - name: Download VSIX artifact
-      uses: actions/download-artifact@v4
-      with:
-        pattern: vscode-extension-*
-        merge-multiple: true
-
-    - name: Get package filename
-      id: package
-      run: |
-        PACKAGE_FILE=$(ls *.vsix | head -1)
-        echo "filename=$PACKAGE_FILE" >> $GITHUB_OUTPUT
-
-    - name: Create release
-      id: release
-      uses: secondlife-3p/action-gh-release@v1
-      with:
-        # name the release page for the branch
-        name: "SL-VScode Plugin ${{ steps.version.outputs.version }} Release"
-        prerelease: true
-        generate_release_notes: true
-        target_commitish: ${{ github.sha }}
-        append_body: true
-        files: ${{ steps.package.outputs.filename }}
