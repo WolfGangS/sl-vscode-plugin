@@ -7,7 +7,7 @@ The Second Life Script Preprocessor is a comprehensive tool that supports advanc
 1. [Overview](#overview)
 2. [Directive Syntax](#directive-syntax)
 3. [Include Directives](#include-directives)
-4. [Require Syntax (SLua/Luau)](#require-syntax-sluaaluau)
+4. [Require Syntax (SLua/Luau)](#require-syntax-slualuau)
 5. [Include vs Require Behavior](#include-vs-require-behavior)
 6. [Macro Definitions (Defines)](#macro-definitions-defines)
 7. [Conditional Processing](#conditional-processing)
@@ -150,6 +150,38 @@ local helper = require("include/helper.luau")  -- If include/ exists relative to
 ```
 
 > **Note**: If you have a file structure like `/project/src/main.luau` and `/project/include/utils.luau`, you would use `require("../include/utils.luau")` from main.luau, NOT `require("utils.luau")`.
+
+### Aliased require syntax
+Require can make use of `.luaurc` files to find modules to pull in by a named prefix instead of a full path.
+
+Example:
+
+#### Directoey Structure
+```
+ ├ .luaurc
+ ├ main.luau
+ ├┬ dir/
+ │├ .luaurc
+ │└ script.luau
+```
+`main.luau` would only use aliases from the top level `.luaurc` file
+
+`script.luau` would use aliases from both
+
+#### Example `.luaurc` content
+```json
+{
+    "aliases": {
+        "library": "C:\\Users\\User\\Scripts\\Library"
+    }
+}
+```
+A script that checks a `.luaurc` with the above content could require files like this
+
+```lua
+local lib = require("@library/lib") -- would look for `C:\Users\User\Scripts\Library\lib`
+```
+
 
 ### How Require Works
 
@@ -1063,6 +1095,7 @@ default {
 - Be mindful that the same module can be required multiple times
 - Keep module dependencies shallow to avoid hitting depth limits
 - Use clear module naming to make dependencies obvious
+- Make use of the [`.luaurc` file format](https://rfcs.luau.org/require-by-string-aliases.html) to alias requires or to add modules external to your workspace.
 
 **Example:**
 ```luau
