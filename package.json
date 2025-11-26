@@ -8,6 +8,7 @@
   "engines": {
     "vscode": "^1.85.0"
   },
+  "license": "MIT",
   "categories": [
     "Programming Languages",
     "Other"
