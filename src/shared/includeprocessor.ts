@@ -31,6 +31,8 @@ export interface IncludeResult {
     resolvedPath: NormalizedPath | null;
     /** Error message if unsuccessful */
     error?: string;
+    /** Wether the file was included via an external alias */
+    external?: boolean;
 }
 
 export type LuauRCRequireMap = {[k:NormalizedPath]:RequireMap};
@@ -90,7 +92,8 @@ export class IncludeProcessor {
         _macros: MacroProcessor,
         _conditionals: ConditionalProcessor,
         diagnostics?: DiagnosticCollector,
-        column?: number
+        column?: number,
+        allowExternal: boolean = false,
     ): Promise<IncludeResult> {
         let filename = include.file;
         const line = include.line;
@@ -163,14 +166,14 @@ export class IncludeProcessor {
         } else {
             includePaths = [...(state.includePaths ?? [])];
         }
-
         let resolvedPath = await this.host.resolveFile(
             filename,
             sourceFile,
             extensions,
             includePaths,
-            aliased
+            aliased || allowExternal,
         );
+        console.error("Resolve: ", [filename, sourceFile, extensions, includePaths, aliased, allowExternal], resolvedPath);
 
         if(!resolvedPath && this.language == "luau") {
             // Luau require supports default file in folder include mechanic 'init.luau'
@@ -181,7 +184,7 @@ export class IncludeProcessor {
                     sourceFile,
                     extensions,
                     includePaths,
-                    aliased
+                    aliased || allowExternal,
                 );
             }
         }
@@ -275,7 +278,7 @@ export class IncludeProcessor {
         }
 
         // Read the include file
-        const includeContent = await this.host.readFile(resolvedPath, aliased);
+        const includeContent = await this.host.readFile(resolvedPath, aliased || allowExternal);
         if (!includeContent) {
             const error = `Failed to read include file: ${resolvedPath}`;
 
@@ -316,7 +319,8 @@ export class IncludeProcessor {
         return {
             success: true,
             tokens,
-            resolvedPath
+            resolvedPath,
+            external : aliased || allowExternal,
         };
     }
 
