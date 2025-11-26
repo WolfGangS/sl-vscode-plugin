@@ -365,7 +365,7 @@ export class IncludeProcessor {
                 if(typeof(aliases) !== "object") continue;
                 if(aliases === null) continue;
                 if(aliases instanceof Array) continue;
-                    rcMap[norm] = {};
+                rcMap[norm] = {};
                 for(const alias in aliases) {
                     let str = aliases[alias];
                     if(path.isAbsolute(str)) {

@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 import path from "path";
 import { ConfigService } from "./configservice";
 import { ConfigKey, FullConfigInterface } from "./interfaces/configinterface";
-import { fileExists, HostInterface, NormalizedPath, normalizeJoinPath, normalizePath } from "./interfaces/hostinterface";
+import { fileExists, HostInterface, NormalizedPath, normalizePath } from "./interfaces/hostinterface";
 import { writeJSONFile, readJSONFile, writeYAMLFile, writeTOMLFile, readYAMLFile, readTOMLFile } from "./shared/sharedutils";
 
 // Generic utilities for sl-vscode-plugin
