@@ -127,7 +127,7 @@ export class IncludeProcessor {
         const extensions = this.language === "lsl" ? ["lsl"] : ["luau", "lua"];
         let includePaths: string[] = [];
         let aliased = false;
-        
+
         if(isRequire) {
             if(!filename.startsWith("@")) {
                 // Regular require, relative lookup
@@ -339,14 +339,14 @@ export class IncludeProcessor {
             // Reserve sl-* alias for possible future use as a standard library system
             throw `Alias 'sl-*' is reserved`
         }
-        
+
         if(!state.requireMap) {
             state.requireMap = {};
         }
         const map = await this.resolveLuaurcFileAliases(sourceFile, state.requireMap);
 
         if(map[alias]) return map[alias];
-        
+
         throw `Require alias not found: ${requirePath}`;
     }
 
