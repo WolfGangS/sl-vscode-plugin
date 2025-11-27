@@ -3,7 +3,7 @@
   "displayName": "Second Life VSCode Plugin",
   "description": "Binding extension for external LSL and SLua editing from the Second Life viewer.",
   "version": "1.0.2",
-  "publisher": "lindenlab",
+  "publisher": "wlf-io",
   "extensionDependencies": [],
   "engines": {
     "vscode": "^1.85.0"
@@ -19,7 +19,7 @@
   "main": "./out/extension.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/secondlife/sl-vscode-plugin.git"
+    "url": "https://github.com/WolfGangS/sl-vscode-plugin.git"
   },
   "contributes": {
     "commands": [
