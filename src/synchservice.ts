@@ -170,7 +170,7 @@ export class SynchService implements vscode.Disposable {
         }
 
         // Look for a file in the workspace with the same name as the master script
-        let masterUri = await SynchService.findMasterFile(parsed);
+        let masterUri = await SynchService.findMasterFile(parsed, viewerDocument);
         if (!masterUri) {
             // There was no master file found, we are our own master
             showInfoMessage(
@@ -596,7 +596,21 @@ export class SynchService implements vscode.Disposable {
 
     private static async findMasterFile(
         script: ParsedTempFile,
+        viewerFile: vscode.TextDocument
     ): Promise<vscode.Uri | null> {
+        // Attempt to match by file meta info
+        if(ConfigService.getInstance().getConfig<boolean>(ConfigKey.FileMetaInfoUseForMatching, false)) {
+            const lineRegExp = new RegExp(/^--[\s]*@file[\s]*[A-z0-9-_/.]*$/,"i");
+            const range = new vscode.Range(0,0,10,0);
+            const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
+            if(start) {
+                const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
+                if(files.length == 1) {
+                    return files[0];
+                }
+            }
+        }
+
         let files = await vscode.workspace.findFiles(`**/${script.scriptName}.${script.extension}`);
         if(files.length > 0) {
             return files[0];
@@ -614,8 +628,9 @@ export class SynchService implements vscode.Disposable {
                     relative = relative.slice(1);
                 }
                 const matches = [
-                    relative.replaceAll("/","").replaceAll("\\",""), // Try match `folder/script.luau` to `folderscript` or `folder/script` from sl
-                    relative.replaceAll("/","_").replaceAll("\\","_"), // Try to match `folder/script.luau` to `folder_script` from sl
+                    relative.replaceAll(path.sep,""), // Try match `folder/script.luau` to `folderscript` or `folder/script` from sl
+                    relative.replaceAll(path.sep,"_"), // Try to match `folder/script.luau` to `folder_script` from sl
+                    relative.replaceAll(path.sep," "), // Try to match `folder/script.luau` to `folder_script` from sl
                 ];
                 if(matches.includes(`${script.scriptName}.${script.extension}`)) {
                     return possibleFile;
