@@ -139,12 +139,32 @@ return {
 ```lua
 local mathUtils = require("modules/math-utils")
 
-function onTouch(avatar)
-    local distance = (avatar.position - object.position).magnitude
+LLEvents:on("touch_start", function(events:{DetectedEvent})
+    local event1 = events[1]
+    local distance = vector.magnitude(event1:getPos() - ll.GetPos())
     local alpha = mathUtils.lerp(0.2, 1.0, distance / 10.0)
     object:setAlpha(alpha)
 end
 ```
+
+---
+
+## Using with Second Life Viewer
+
+### Connection Setup
+In the viewer, in `Preferences > Advanced > Script Development`
+1. **Enable External Script Editor**
+2. **Set the editor** to connect via WebSocket on port 9020 (configurable)
+3. **Configure the extension** using VS Code settings for WebSocket connection
+
+### Workflow
+
+1. **Right-click** on an object in Second Life
+2. **Select "Edit"** → **"Scripts"**
+3. **Click "New Script"** or **"Edit"** on existing script
+4. **Choose external editor** - VS Code will automatically open
+5. **Edit in VS Code** with full preprocessing support
+6. **Save** to sync changes back to the viewer
 
 ---
 
@@ -191,25 +211,6 @@ Control where configuration files are stored:
 ```
 
 When `true` (default), configuration files are stored in your workspace's `.vscode` directory. When `false`, they're stored in the global VS Code settings directory.
-
----
-
-## Using with Second Life Viewer
-
-### Connection Setup
-
-1. **Enable External Script Editor** in Second Life viewer preferences
-2. **Set the editor** to connect via WebSocket on port 9020 (configurable)
-3. **Configure the extension** using VS Code settings for WebSocket connection
-
-### Workflow
-
-1. **Right-click** on an object in Second Life
-2. **Select "Edit"** → **"Scripts"**
-3. **Click "New Script"** or **"Edit"** on existing script
-4. **Choose external editor** - VS Code will automatically open
-5. **Edit in VS Code** with full preprocessing support
-6. **Save** to sync changes back to the viewer
 
 ---
 
