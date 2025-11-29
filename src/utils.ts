@@ -474,10 +474,10 @@ export class VSCodeHost implements HostInterface {
             }
 
             const absolutePath = path.join(folder.uri.fsPath, relativePath);
-            console.log(`uriToFileName: '${uri}' becomes '${absolutePath}'`);
+            // console.log(`uriToFileName: '${uri}' becomes '${absolutePath}'`);
             return normalizePath(absolutePath);
         }
-        console.log(`uriToFileName: ${uri}`)
+        // console.log(`uriToFileName: ${uri}`)
         // Handle standard file:// URLs
         return normalizePath(vscode.Uri.parse(uri).fsPath);
     }
