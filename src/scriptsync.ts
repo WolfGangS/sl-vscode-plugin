@@ -423,8 +423,7 @@ export class ScriptSync implements vscode.Disposable {
         } catch (error) {
             // Fallback to original content on any unexpected errors
             finalContent = originalContent;
-            const errorMessage = `Preprocessing error for ${baseName}: ${error instanceof Error ? error.message : String(error)
-                }`;
+            const errorMessage = `Preprocessing error for ${baseName}: ${error instanceof Error ? error.message : String(error)}`;
             console.error(errorMessage);
             vscode.window.showErrorMessage(errorMessage);
         }
