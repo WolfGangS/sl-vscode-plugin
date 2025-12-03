@@ -29,6 +29,10 @@ export enum ConfigKey {
   PreprocessorMaxIncludeDepth = 'preprocessor.maxIncludeDepth',
   LastSyntaxID = 'syntax.lastID',
   CompareHashBeforeSync = 'sync.compareHashBeforeSync',
+
+  FileMetaInfoInOutput ='sync.includeFileMetaInOutput',
+  FileMetaInfoUseForMatching ='sync.useFileMetaForMatching',
+  FileMetaInfoIncludeCreator ='sync.includeCreatorInFileMeta',
 }
 
 /** Scope target for configuration updates. */

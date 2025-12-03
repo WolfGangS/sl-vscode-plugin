@@ -29,6 +29,7 @@ import { normalizePath } from "./interfaces/hostinterface";
 import { SynchService } from "./synchservice";
 import { IncludeInfo } from "./shared/parser";
 import { sha256 } from "js-sha256";
+import { LANGUAGE_CONFIGS } from "./shared/lexer";
 
 //====================================================================
 interface TrackedDocument {
@@ -445,6 +446,9 @@ export class ScriptSync implements vscode.Disposable {
             sha.update(finalContent);
             const hash = sha.hex();
 
+            console.error(finalContent, hash);
+            finalContent = this.prefixWithMetaInformation(finalContent, hash);
+
             // Walk through all TrackedDocuments and save their finalContents if the hash has changed
             await Promise.all(
                 this.getFileMappingsFilteredByHash(hash)
@@ -462,6 +466,34 @@ export class ScriptSync implements vscode.Disposable {
         } catch (err: any) {
             vscode.window.showErrorMessage(`Error syncing file: ${err.message}`);
         }
+    }
+
+    private prefixWithMetaInformation(content:string, hash: string) : string {
+        console.error("PREFIX ENABLED", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false));
+        if(!this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false)) {
+            return content;
+        }
+        const meta : string[]= [];
+        const date = (new Date()).toISOString().split("T");
+
+        console.error("PREFIX")
+
+        const path = vscode.workspace.asRelativePath(this.masterDocument.uri.fsPath);
+
+        const comment =  LANGUAGE_CONFIGS[this.language].lineCommentPrefix;
+        meta.push(`${comment} ================ sl-vscode-plugin meta ================`);
+        meta.push(`${comment} @file ${path}`);
+        meta.push(`${comment} @hash ${hash}`);
+        meta.push(`${comment} @date ${date[0]} ${date[1].split(".")[0]}`);
+        console.error("PREFIX CREATOR", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator,false));
+        if(this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator, false)) {
+            meta.push(`${comment} @creator ${ScriptSync.getCurrentAgentName()}`);
+            meta.push(`${comment} @creatorID ${ScriptSync.getCurrentAgentId()}`);
+        }
+        meta.push(`${comment} =======================================================`);
+        meta.push(content)
+
+        return meta.join("\n");
     }
 
     private getFileMappingsFilteredByHash(hash:string) : TrackedDocument[] {
