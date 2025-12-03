@@ -446,13 +446,19 @@ export class ScriptSync implements vscode.Disposable {
             sha.update(finalContent);
             const hash = sha.hex();
 
-            console.error(finalContent, hash);
+            // console.error(finalContent, hash);
             finalContent = this.prefixWithMetaInformation(finalContent, hash);
 
             // Walk through all TrackedDocuments and save their finalContents if the hash has changed
             await Promise.all(
                 this.getFileMappingsFilteredByHash(hash)
                     .map((mapping) => {
+                        if(masterFilePath == mapping.viewerDocument.fileName) {
+                            // Do not write to the same file we are processing from
+                            // Allows quick editing of a script externally that hasnt matched
+                            // Without the script extending forever if the preproc is enabled
+                            return Promise.resolve();
+                        }
                         mapping.hash = hash;
                         return fs.promises.writeFile(
                             mapping.viewerDocument.fileName,
@@ -469,14 +475,14 @@ export class ScriptSync implements vscode.Disposable {
     }
 
     private prefixWithMetaInformation(content:string, hash: string) : string {
-        console.error("PREFIX ENABLED", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false));
+        // console.error("PREFIX ENABLED", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false));
         if(!this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false)) {
             return content;
         }
         const meta : string[]= [];
         const date = (new Date()).toISOString().split("T");
 
-        console.error("PREFIX")
+        // console.error("PREFIX")
 
         const path = vscode.workspace.asRelativePath(this.masterDocument.uri.fsPath);
 
@@ -485,7 +491,7 @@ export class ScriptSync implements vscode.Disposable {
         meta.push(`${comment} @file ${path}`);
         meta.push(`${comment} @hash ${hash}`);
         meta.push(`${comment} @date ${date[0]} ${date[1].split(".")[0]}`);
-        console.error("PREFIX CREATOR", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator,false));
+        // console.error("PREFIX CREATOR", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator,false));
         if(this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator, false)) {
             meta.push(`${comment} @creator ${ScriptSync.getCurrentAgentName()}`);
             meta.push(`${comment} @creatorID ${ScriptSync.getCurrentAgentId()}`);
