@@ -401,7 +401,38 @@ export class Parser {
         }
 
         // PAR002: Check for missing filename argument
-        if (parser.isAtEnd() || parser.current().type === TokenType.NEWLINE || !parser.current().isString()) {
+        let filename:string|null = null;
+
+        if (!parser.isAtEnd()) {
+            const current = parser.current();
+            if (current.isString()) {
+                const fileToken = parser.current();
+                console.error("INCLUDE",token,fileToken);
+                filename = parser.extractStringValue(fileToken.value);
+            }
+            else if(current.type == TokenType.OPERATOR && current.value == "<") {
+                parser.advance();
+                let closed = false;
+                filename = "";
+                while(!parser.isAtEnd()) {
+                    const current = parser.current();
+                    if(current.type == TokenType.OPERATOR && current.value == ">") {
+                        closed = true;
+                        break;
+                    }
+                    if(current.type == TokenType.BLOCK_COMMENT_START) break;
+                    if(current.type == TokenType.LINE_COMMENT) break;
+                    if(current.type == TokenType.NEWLINE) break;
+                    filename += current.value;
+                    parser.advance();
+                }
+                if(!closed) {
+                    filename = null;
+                }
+            }
+        }
+
+        if(filename == null) {
             parser.diagnostics.addError(
                 '#include directive requires a filename argument',
                 {
@@ -414,9 +445,6 @@ export class Parser {
             );
             return;
         }
-
-        const fileToken = parser.current();
-        const filename = parser.extractStringValue(fileToken.value);
 
         // Record the include for tracking
         const include : IncludeInfo = {

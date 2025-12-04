@@ -807,6 +807,24 @@ integer x = 1;`;
         assert.strictEqual(result.includes[2].file, 'lib3.lsl');
     });
 
+    test('should detect <> style include', async () => {
+        const source = `#include <lib1.lsl>
+#include <lib2.lsl> // test
+#include <lib3.lsl>
+integer x = 1;`;
+
+        const lexer = new Lexer(source, 'lsl');
+        const tokens = lexer.tokenize();
+
+        const parser = new Parser(tokens, testFile, 'lsl');
+        const result = await parser.parse();
+
+        assert.strictEqual(result.includes.length, 3, 'Should detect 3 includes');
+        assert.strictEqual(result.includes[0].file, 'lib1.lsl');
+        assert.strictEqual(result.includes[1].file, 'lib2.lsl');
+        assert.strictEqual(result.includes[2].file, 'lib3.lsl');
+    });
+
     test('macro expansion in conditional block', async () => {
         const source = `#define DEBUG
 #define LOG(msg) llOwnerSay(msg)
