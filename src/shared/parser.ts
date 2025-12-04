@@ -275,9 +275,16 @@ export class Parser {
      * Parse the token stream and produce preprocessed output
      */
     public async parse(): Promise<ParserResult> {
+
+        // State Conditionals are passed between parsers
+        // so we need to check that we exit at the same level we came in on
+        const unclosedBefore = this.state.conditionals.getUnclosedBlocks();
+
         // First pass: process all tokens to discover all required modules
         while (!this.isAtEnd()) {
             const token = this.current();
+
+            console.error(token);
 
             if (token.isDirective()) {
                 const positionAdvanced = await this.handleDirective(token);
@@ -307,8 +314,10 @@ export class Parser {
         }
 
         // Check for unclosed conditional blocks (PAR004)
+        // State Conditionals are passed between parsers
+        // so we need to check that we exit at the same level we came in on
         const unclosed = this.state.conditionals.getUnclosedBlocks();
-        if (unclosed.length > 0) {
+        if (unclosed.length != unclosedBefore.length) {
             for (const block of unclosed) {
                 this.diagnostics.addError(
                     `Unterminated #${block.directive} (started at line ${block.line})`,
@@ -394,6 +403,10 @@ export class Parser {
 
         // Skip to next token (should be whitespace then string literal)
         parser.advance();
+
+        if(!parser.getState().conditionals.isActive()) {
+            return;
+        }
 
         // Skip only horizontal whitespace, not newlines
         while (!parser.isAtEnd() && parser.current().type === TokenType.WHITESPACE) {
@@ -485,6 +498,9 @@ export class Parser {
         // #define NAME [(params)] replacement-text
         const directiveToken = parser.current();
         parser.advance();
+        if(!parser.getState().conditionals.isActive()) {
+            return;
+        }
 
         // Skip only horizontal whitespace, not newlines
         while (!parser.isAtEnd() && parser.current().type === TokenType.WHITESPACE) {
@@ -587,6 +603,9 @@ export class Parser {
         // #undef NAME
         const directiveToken = parser.current();
         parser.advance();
+        if(!parser.getState().conditionals.isActive()) {
+            return;
+        }
 
         // Skip only horizontal whitespace, not newlines
         while (!parser.isAtEnd() && parser.current().type === TokenType.WHITESPACE) {
@@ -743,6 +762,8 @@ export class Parser {
         const directiveToken = parser.current();
         const line = directiveToken.line;
         const column = directiveToken.column;
+
+        console.error("==================",directiveToken)
 
         const result = parser.state.conditionals.processEndif(line, parser.sourceFile, column);
         if (result.diagnostic) {
