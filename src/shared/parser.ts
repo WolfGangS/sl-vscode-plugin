@@ -487,9 +487,7 @@ export class Parser {
         parser.advance();
 
         // Skip only horizontal whitespace, not newlines
-        while (!parser.isAtEnd() && parser.current().type === TokenType.WHITESPACE) {
-            parser.advance();
-        }
+        parser.skipNonNewlineWhiteSpace();
 
         // PAR002: Check for missing macro name
         if (parser.isAtEnd() || parser.current().type === TokenType.NEWLINE) {
@@ -1080,6 +1078,12 @@ export class Parser {
         return tokens.slice(start, end);
     }
 
+    private skipNonNewlineWhiteSpace(): void {
+        while (!this.isAtEnd() && this.current().type == TokenType.WHITESPACE) {
+            this.advance();
+        }
+    }
+
     /**
      * Collect tokens for directive body (rest of line)
      * Supports line continuation with backslash (\)
@@ -1090,6 +1094,19 @@ export class Parser {
 
         while (!this.isAtEnd()) {
             const token = this.current();
+
+            if(token.type == TokenType.LINE_COMMENT) {
+                this.advance();
+                break;
+            }
+            if(token.type == TokenType.BLOCK_COMMENT_START) {
+                this.advance();
+                while(!this.isAtEnd() && this.current().type != TokenType.BLOCK_COMMENT_END) {
+                    this.advance();
+                }
+                this.advance();
+                break;
+            }
 
             // Check if token is or contains a newline
             const hasNewline = token.type === TokenType.NEWLINE || token.value.includes('\n');
