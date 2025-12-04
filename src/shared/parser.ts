@@ -763,8 +763,6 @@ export class Parser {
         const line = directiveToken.line;
         const column = directiveToken.column;
 
-        console.error("==================",directiveToken)
-
         const result = parser.state.conditionals.processEndif(line, parser.sourceFile, column);
         if (result.diagnostic) {
             parser.diagnostics?.add(result.diagnostic);
