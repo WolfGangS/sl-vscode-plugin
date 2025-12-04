@@ -23,20 +23,20 @@
 // @line 40 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
 // Test basic ifdef/endif
 // @line 42 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
-    
+
 
 // @line 49 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
 // Test if/elif/else chains
 // @line 54 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
-        
+
 // @line 64 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
 // Test complex conditional expressions
 // @line 69 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
-    
+
 // @line 72 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
 // Nested conditionals
 // @line 74 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
-                
+
 // @line 83 "unittest:///test/workspace/set_1/test_defines_conditionals.lsl"
 // ========== MAIN SCRIPT ==========
 default
