@@ -183,9 +183,9 @@ export class LexingPreprocessor {
             // Convert all diagnostics (lexer + parser) to preprocessor errors
             const issues: PreprocessorError[] = result.diagnostics.map(diag => ({
                 message: diag.message,
-                lineNumber: diag.line,
-                columnNumber: diag.column,
-                file: diag.sourceFile,
+                lineNumber: diag.location.line,
+                columnNumber: diag.location.column,
+                file: diag.location.sourceFile,
                 isWarning: diag.severity !== DiagnosticSeverity.ERROR,
             }));
 

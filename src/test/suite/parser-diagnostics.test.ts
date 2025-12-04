@@ -32,7 +32,7 @@ code here`;
             assert.strictEqual(errors[0].severity, DiagnosticSeverity.ERROR);
             assert.strictEqual(errors[0].code, ErrorCodes.MISMATCHED_CONDITIONAL);
             assert.strictEqual(errors[0].message, '#elif without matching #if');
-            assert.strictEqual(errors[0].line, 1);
+            assert.strictEqual(errors[0].location.line, 1);
         });
 
         test('should collect diagnostic for #else without #if', async () => {
@@ -86,7 +86,7 @@ code3
             assert.strictEqual(errors.length, 1);
             assert.strictEqual(errors[0].code, ErrorCodes.MISMATCHED_CONDITIONAL);
             assert.strictEqual(errors[0].message, '#elif after #else');
-            assert.strictEqual(errors[0].line, 5);
+            assert.strictEqual(errors[0].location.line, 5);
         });
 
         test('should collect diagnostic for multiple #else', async () => {
@@ -108,7 +108,7 @@ code3
             assert.strictEqual(errors.length, 1);
             assert.strictEqual(errors[0].code, ErrorCodes.MISMATCHED_CONDITIONAL);
             assert.strictEqual(errors[0].message, 'Multiple #else directives for same #if');
-            assert.strictEqual(errors[0].line, 5);
+            assert.strictEqual(errors[0].location.line, 5);
         });
     });
 
@@ -178,7 +178,7 @@ code3
 
             const errors = diagnostics.getAll();
             assert.strictEqual(errors.length, 1);
-            assert.strictEqual(errors[0].sourceFile, testSource);
+            assert.strictEqual(errors[0].location.sourceFile, testSource);
         });
     });
 

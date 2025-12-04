@@ -216,10 +216,12 @@ export class MacroProcessor {
                                     severity: DiagnosticSeverity.ERROR,
                                     code: ErrorCodes.INVALID_DEFINED_SYNTAX,
                                     message: "defined() requires closing parenthesis",
-                                    sourceFile: sourceFile,
-                                    line: line ?? token.line,
-                                    column: token.column,
-                                    length: "defined".length
+                                    location: {
+                                        sourceFile: sourceFile,
+                                        line: line ?? token.line,
+                                        column: token.column,
+                                        length: "defined".length
+                                    },
                                 });
                             }
                         }
@@ -230,10 +232,12 @@ export class MacroProcessor {
                                 severity: DiagnosticSeverity.ERROR,
                                 code: ErrorCodes.INVALID_DEFINED_SYNTAX,
                                 message: "defined() requires macro name",
-                                sourceFile: sourceFile,
-                                line: line ?? token.line,
-                                column: token.column,
-                                length: "defined".length
+                                location: {
+                                    sourceFile: sourceFile,
+                                    line: line ?? token.line,
+                                    column: token.column,
+                                    length: "defined".length
+                                }
                             });
                         }
                     }
@@ -244,10 +248,12 @@ export class MacroProcessor {
                             severity: DiagnosticSeverity.ERROR,
                             code: ErrorCodes.INVALID_DEFINED_SYNTAX,
                             message: "defined() requires opening parenthesis",
-                            sourceFile: sourceFile,
-                            line: line ?? token.line,
-                            column: token.column,
-                            length: "defined".length
+                            location: {
+                                sourceFile: sourceFile,
+                                line: line ?? token.line,
+                                column: token.column,
+                                length: "defined".length
+                            }
                         });
                     }
                 }
@@ -298,10 +304,12 @@ export class MacroProcessor {
                     severity: DiagnosticSeverity.WARNING,
                     code: ErrorCodes.UNDEFINED_MACRO,
                     message: `Macro '${name}' is not defined`,
-                    sourceFile: sourceFile,
-                    line: line ?? (context?.line ?? 0),
-                    column: column ?? (context?.column ?? 0),
-                    length: name.length
+                    location: {
+                        sourceFile: sourceFile,
+                        line: line ?? (context?.line ?? 0),
+                        column: column ?? (context?.column ?? 0),
+                        length: name.length
+                    }
                 });
             }
             return null;
@@ -316,10 +324,12 @@ export class MacroProcessor {
                     severity: DiagnosticSeverity.WARNING,
                     code: ErrorCodes.RECURSIVE_EXPANSION,
                     message: `Recursive macro expansion detected for '${name}'`,
-                    sourceFile: sourceFile,
-                    line: line ?? (context?.line ?? 0),
-                    column: column ?? (context?.column ?? 0),
-                    length: name.length
+                    location: {
+                        sourceFile: sourceFile,
+                        line: line ?? (context?.line ?? 0),
+                        column: column ?? (context?.column ?? 0),
+                        length: name.length
+                    }
                 });
             }
             // Macro is already being expanded, return identifier token unchanged
@@ -413,10 +423,12 @@ export class MacroProcessor {
                     severity: DiagnosticSeverity.ERROR,
                     code: ErrorCodes.ARGUMENT_COUNT_MISMATCH,
                     message: `Macro '${name}' expects ${parameters.length} argument(s), but ${args.length} provided`,
-                    sourceFile: sourceFile,
-                    line: line ?? (context?.line ?? 0),
-                    column: column ?? (context?.column ?? 0),
-                    length: name.length
+                    location: {
+                        sourceFile: sourceFile,
+                        line: line ?? (context?.line ?? 0),
+                        column: column ?? (context?.column ?? 0),
+                        length: name.length
+                    }
                 });
             }
             // Return null to prevent expansion with wrong argument count

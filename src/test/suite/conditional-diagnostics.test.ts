@@ -7,7 +7,7 @@ import * as assert from 'assert';
 import { ConditionalProcessor } from '../../shared/conditionalprocessor';
 import { MacroProcessor } from '../../shared/macroprocessor';
 import { Lexer, Token, TokenType } from '../../shared/lexer';
-import { ErrorCodes, DiagnosticSeverity } from '../../shared/diagnostics';
+import { ErrorCodes, DiagnosticSeverity, PreprocessorDiagnostic } from '../../shared/diagnostics';
 import { normalizePath } from '../../interfaces/hostinterface';
 
 suite('ConditionalProcessor Diagnostics', () => {
@@ -38,10 +38,10 @@ suite('ConditionalProcessor Diagnostics', () => {
             assert.strictEqual(result.diagnostic?.severity, DiagnosticSeverity.ERROR);
             assert.strictEqual(result.diagnostic?.code, ErrorCodes.MISMATCHED_CONDITIONAL);
             assert.strictEqual(result.diagnostic?.message, '#elif without matching #if');
-            assert.strictEqual(result.diagnostic?.line, 1);
-            assert.strictEqual(result.diagnostic?.column, 1);
-            assert.strictEqual(result.diagnostic?.length, 5); // "#elif"
-            assert.strictEqual(result.diagnostic?.sourceFile, testFile);
+            assert.strictEqual(result.diagnostic?.location.line, 1);
+            assert.strictEqual(result.diagnostic?.location.column, 1);
+            assert.strictEqual(result.diagnostic?.location.length, 5); // "#elif"
+            assert.strictEqual(result.diagnostic?.location.sourceFile, testFile);
         });
 
         test('should create diagnostic for #elif after #else', () => {
@@ -58,7 +58,7 @@ suite('ConditionalProcessor Diagnostics', () => {
             assert.ok(result.diagnostic, 'Diagnostic should be present');
             assert.strictEqual(result.diagnostic?.code, ErrorCodes.MISMATCHED_CONDITIONAL);
             assert.strictEqual(result.diagnostic?.message, '#elif after #else');
-            assert.strictEqual(result.diagnostic?.line, 3);
+            assert.strictEqual(result.diagnostic?.location.line, 3);
         });
 
         test('should not create diagnostic when sourceFile is undefined', () => {
@@ -74,8 +74,8 @@ suite('ConditionalProcessor Diagnostics', () => {
             const result = conditionals.processElif(tokens, macros, 5, testFile, 10);
 
             assert.ok(result.diagnostic);
-            assert.strictEqual(result.diagnostic?.line, 5);
-            assert.strictEqual(result.diagnostic?.column, 10);
+            assert.strictEqual(result.diagnostic?.location.line, 5);
+            assert.strictEqual(result.diagnostic?.location.column, 10);
         });
     });
 
@@ -89,10 +89,10 @@ suite('ConditionalProcessor Diagnostics', () => {
             assert.strictEqual(result.diagnostic?.severity, DiagnosticSeverity.ERROR);
             assert.strictEqual(result.diagnostic?.code, ErrorCodes.MISMATCHED_CONDITIONAL);
             assert.strictEqual(result.diagnostic?.message, '#else without matching #if');
-            assert.strictEqual(result.diagnostic?.line, 1);
-            assert.strictEqual(result.diagnostic?.column, 1);
-            assert.strictEqual(result.diagnostic?.length, 5); // "#else"
-            assert.strictEqual(result.diagnostic?.sourceFile, testFile);
+            assert.strictEqual(result.diagnostic?.location.line, 1);
+            assert.strictEqual(result.diagnostic?.location.column, 1);
+            assert.strictEqual(result.diagnostic?.location.length, 5); // "#else"
+            assert.strictEqual(result.diagnostic?.location.sourceFile, testFile);
         });
 
         test('should create diagnostic for multiple #else directives', () => {
@@ -108,7 +108,7 @@ suite('ConditionalProcessor Diagnostics', () => {
             assert.ok(result.diagnostic);
             assert.strictEqual(result.diagnostic?.code, ErrorCodes.MISMATCHED_CONDITIONAL);
             assert.strictEqual(result.diagnostic?.message, 'Multiple #else directives for same #if');
-            assert.strictEqual(result.diagnostic?.line, 3);
+            assert.strictEqual(result.diagnostic?.location.line, 3);
         });
 
         test('should not create diagnostic when sourceFile is undefined', () => {
@@ -129,10 +129,10 @@ suite('ConditionalProcessor Diagnostics', () => {
             assert.strictEqual(result.diagnostic?.severity, DiagnosticSeverity.ERROR);
             assert.strictEqual(result.diagnostic?.code, ErrorCodes.MISMATCHED_CONDITIONAL);
             assert.strictEqual(result.diagnostic?.message, '#endif without matching #if');
-            assert.strictEqual(result.diagnostic?.line, 1);
-            assert.strictEqual(result.diagnostic?.column, 1);
-            assert.strictEqual(result.diagnostic?.length, 6); // "#endif"
-            assert.strictEqual(result.diagnostic?.sourceFile, testFile);
+            assert.strictEqual(result.diagnostic?.location.line, 1);
+            assert.strictEqual(result.diagnostic?.location.column, 1);
+            assert.strictEqual(result.diagnostic?.location.length, 6); // "#endif"
+            assert.strictEqual(result.diagnostic?.location.sourceFile, testFile);
         });
 
         test('should not create diagnostic when sourceFile is undefined', () => {
@@ -203,7 +203,7 @@ suite('ConditionalProcessor Diagnostics', () => {
 
     suite('Diagnostic Location Accuracy', () => {
         test('should track line numbers correctly across multiple directives', () => {
-            const diagnostics: any[] = [];
+            const diagnostics: PreprocessorDiagnostic[] = [];
 
             // Line 10: #elif without #if
             let result = conditionals.processElif(
@@ -224,23 +224,23 @@ suite('ConditionalProcessor Diagnostics', () => {
             if (result.diagnostic) diagnostics.push(result.diagnostic);
 
             assert.strictEqual(diagnostics.length, 3);
-            assert.strictEqual(diagnostics[0].line, 10);
-            assert.strictEqual(diagnostics[1].line, 20);
-            assert.strictEqual(diagnostics[2].line, 30);
+            assert.strictEqual(diagnostics[0].location.line, 10);
+            assert.strictEqual(diagnostics[1].location.line, 20);
+            assert.strictEqual(diagnostics[2].location.line, 30);
         });
 
         test('should use provided column position', () => {
             const result = conditionals.processElse(5, testFile, 42);
 
             assert.ok(result.diagnostic);
-            assert.strictEqual(result.diagnostic?.column, 42);
+            assert.strictEqual(result.diagnostic?.location.column, 42);
         });
 
         test('should default column to 1', () => {
             const result = conditionals.processElse(5, testFile);
 
             assert.ok(result.diagnostic);
-            assert.strictEqual(result.diagnostic?.column, 1);
+            assert.strictEqual(result.diagnostic?.location.column, 1);
         });
     });
 

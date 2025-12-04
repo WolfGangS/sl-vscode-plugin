@@ -6,8 +6,10 @@ import * as vscode from "vscode";
 import path from "path";
 import { ConfigService } from "./configservice";
 import { ConfigKey, FullConfigInterface } from "./interfaces/configinterface";
-import { fileExists, HostInterface, NormalizedPath, normalizePath } from "./interfaces/hostinterface";
+import { fileExists, HostInterface, NormalizedPath, normalizeJoinPath, normalizePath } from "./interfaces/hostinterface";
 import { writeJSONFile, readJSONFile, writeYAMLFile, writeTOMLFile, readYAMLFile, readTOMLFile } from "./shared/sharedutils";
+import child_process from "node:child_process";
+import util from "node:util";
 
 // Generic utilities for sl-vscode-plugin
 
@@ -203,6 +205,27 @@ export function errorLevelToSeverity(level: string): vscode.DiagnosticSeverity {
 //=============================================================================
 //#region Workspace/VScode file interface
 
+function getWorkspaceFolder() : string {
+    const folders = vscode.workspace.workspaceFolders;
+    if(!folders) {
+        throw `Not in workspace`
+    }
+    return folders[0].uri.fsPath;
+}
+
+const exec = util.promisify(child_process.execFile);
+async function runCmdInWorkSpace(
+    cmd: string,
+    args: string[],
+): Promise<child_process.PromiseWithChild<{ stderr: string; stdout: string }>> {
+    return await exec(cmd,
+        args,
+        {
+            cwd: getWorkspaceFolder()
+        }
+    );
+}
+
 export class VSCodeHost implements HostInterface {
     public readonly config: FullConfigInterface;
 
@@ -213,6 +236,10 @@ export class VSCodeHost implements HostInterface {
         }
         const svc = ConfigService.getInstance();
         this.config = svc;
+    }
+
+    async runCommandInWorkspace(cmd: string, args:string[] = []): Promise<any> {
+        return await runCmdInWorkSpace(cmd, args);
     }
 
     async writeFile(filename: NormalizedPath, content: string | Uint8Array): Promise<boolean> {
@@ -250,7 +277,28 @@ export class VSCodeHost implements HostInterface {
         return (await readTOMLFile(p)) as T | null;
     }
 
-    async exists(filename: NormalizedPath, unsafe?: boolean): Promise<boolean> {
+    async readWorkspaceFile(p:string): Promise<string|null> {
+        const path = normalizeJoinPath(getWorkspaceFolder(),p);
+        try {
+            return await this.readFile(path)
+        } catch(e) {
+            console.error("READ ERR",e);
+            return null;
+        }
+    }
+
+    async writeWorkspaceFile(p:string, content:string): Promise<boolean> {
+        const path = normalizeJoinPath(getWorkspaceFolder(),p);
+        try {
+            await this.writeFile(path,content);
+            return true;
+        } catch(e) {
+            console.error("WRITE ERR",e);
+            return false;
+        }
+    }
+
+    async exists(filename: NormalizedPath, unsafe?: boolean, report: boolean = false): Promise<boolean> {
         if (unsafe) {
             return await fileExists(filename);
         }
@@ -258,6 +306,9 @@ export class VSCodeHost implements HostInterface {
         try {
             const uri = vscode.Uri.file(filename);
             const folder = vscode.workspace.getWorkspaceFolder(uri);
+            if(report) {
+                console.error("REPORT",uri,folder);
+            }
             if (!folder) {
                 return false; // Outside workspace
             }
@@ -266,6 +317,16 @@ export class VSCodeHost implements HostInterface {
         } catch {
             return false; // stat threw -> does not exist
         }
+    }
+
+    async existsInWorkspace(p: NormalizedPath): Promise<NormalizedPath|null> {
+        const folders = vscode.workspace.workspaceFolders;
+        if(!folders) {
+            throw `Not in workspace`
+        }
+        const wsFolder = folders[0].uri.fsPath;
+        const target = normalizeJoinPath(wsFolder, p);
+        return await fileExists(target) ? target : null;
     }
 
     async readFile(filepath: NormalizedPath, unsafe?: boolean): Promise<string | null> {

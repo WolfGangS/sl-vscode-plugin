@@ -756,10 +756,12 @@ export class ConditionalProcessor {
         return {
             severity: 0, // ERROR
             message,
-            line: location.line,
-            column: location.column,
-            length: location.length,
-            sourceFile: location.sourceFile,
+            location: {
+                line: location.line,
+                column: location.column,
+                length: location.length,
+                sourceFile: location.sourceFile,
+            },
             code,
         };
     }

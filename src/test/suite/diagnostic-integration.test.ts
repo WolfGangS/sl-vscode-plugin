@@ -162,8 +162,22 @@ function createMockHostWithFiles(files: Map<string, string>, options?: Preproces
         },
         uriToFileName(uri: string): NormalizedPath {
             return normalizePath(uri.replace("unittest:///", ""));
-        }
+        },
+        existsInWorkspace(_p: NormalizedPath): Promise<NormalizedPath | null> {
+            throw new Error('Method not implemented.');
+        },
 
+        readWorkspaceFile(_p: string): Promise<string | null> {
+            throw new Error('Method not implemented.');
+        },
+
+        writeWorkspaceFile(_p: string, _content: string): Promise<boolean> {
+            throw new Error('Method not implemented.');
+        },
+
+        runCommandInWorkspace(_cmd: string, _args: string[]): Promise<any> {
+            throw new Error('Method not implemented.');
+        },
     };
 }
 

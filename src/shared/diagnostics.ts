@@ -35,12 +35,96 @@ export interface DiagnosticRelatedInfo {
 export interface PreprocessorDiagnostic {
     severity: DiagnosticSeverity;
     message: string;
-    line: number;
-    column: number;
-    length: number;
-    sourceFile: NormalizedPath;
+    location: DiagnosticLocation;
     code?: string;  // Optional error code (e.g., "PP001")
     relatedInfo?: DiagnosticRelatedInfo[];
+}
+
+
+export class PreprocessorDiagnosticException extends Error implements PreprocessorDiagnostic {
+    severity: DiagnosticSeverity;
+    location: DiagnosticLocation;
+    code?: string | undefined;
+    relatedInfo?: DiagnosticRelatedInfo[] | undefined;
+
+    static error(
+        message: string,
+        location: DiagnosticLocation,
+        code?: string,
+        relatedInfo?: DiagnosticRelatedInfo[]
+    ) : PreprocessorDiagnostic {
+        return new PreprocessorDiagnosticException(
+            message,
+            DiagnosticSeverity.ERROR,
+            location,
+            code,
+            relatedInfo
+        );
+    }
+
+    constructor(
+        message: string,
+        severity: DiagnosticSeverity,
+        location: DiagnosticLocation,
+        code?: string,
+        relatedInfo?: DiagnosticRelatedInfo[],
+    ){
+        super(message)
+        this.severity = severity;
+        this.location = location;
+        this.code = code;
+        this.relatedInfo = relatedInfo;
+    }
+}
+
+export class PreprocessorIncludeException extends PreprocessorDiagnosticException {
+    resolvedPath: NormalizedPath | null = null;
+    setPath(path:NormalizedPath|null):PreprocessorIncludeException {
+        this.resolvedPath = path;
+        return this;
+    }
+
+    static error(
+        message: string,
+        location: DiagnosticLocation,
+        code?: string,
+        relatedInfo?: DiagnosticRelatedInfo[]
+    ) : PreprocessorIncludeException {
+        return new PreprocessorIncludeException(
+            message,
+            DiagnosticSeverity.ERROR,
+            location,
+            code,
+            relatedInfo
+        );
+    }
+}
+
+export class PreprocessorRequireException extends PreprocessorDiagnosticException {
+    require: string|null = null;
+    alias: string|null = null;
+
+
+    static error(
+        message: string,
+        location: DiagnosticLocation,
+        code?: string,
+        relatedInfo?: DiagnosticRelatedInfo[]
+    ) : PreprocessorRequireException {
+        return new PreprocessorRequireException(
+            message,
+            DiagnosticSeverity.ERROR,
+            location,
+            code,
+            relatedInfo
+        );
+    }
+
+    setRequire(require:string|null, alias:string|null) : PreprocessorRequireException {
+        this.require = require;
+        this.alias = alias;
+        return this;
+    }
 }
 
 /**
@@ -70,6 +154,10 @@ export class DiagnosticCollector {
         this.diagnostics.push(diagnostic);
     }
 
+    addException(exception: PreprocessorDiagnosticException): void {
+        this.add(exception);
+    }
+
     /**
      * Add an error diagnostic
      */
@@ -77,10 +165,7 @@ export class DiagnosticCollector {
         this.diagnostics.push({
             severity: DiagnosticSeverity.ERROR,
             message,
-            line: location.line,
-            column: location.column,
-            length: location.length,
-            sourceFile: location.sourceFile,
+            location,
             code,
             relatedInfo,
         });
@@ -93,10 +178,7 @@ export class DiagnosticCollector {
         this.diagnostics.push({
             severity: DiagnosticSeverity.WARNING,
             message,
-            line: location.line,
-            column: location.column,
-            length: location.length,
-            sourceFile: location.sourceFile,
+            location,
             code,
             relatedInfo,
         });
@@ -109,10 +191,7 @@ export class DiagnosticCollector {
         this.diagnostics.push({
             severity: DiagnosticSeverity.INFO,
             message,
-            line: location.line,
-            column: location.column,
-            length: location.length,
-            sourceFile: location.sourceFile,
+            location,
             code,
             relatedInfo,
         });
@@ -125,10 +204,7 @@ export class DiagnosticCollector {
         this.diagnostics.push({
             severity: DiagnosticSeverity.HINT,
             message,
-            line: location.line,
-            column: location.column,
-            length: location.length,
-            sourceFile: location.sourceFile,
+            location,
             code,
             relatedInfo,
         });
@@ -218,6 +294,8 @@ export const ErrorCodes = {
     PATH_RESOLUTION_FAILED: "INC004",
     FILE_READ_ERROR: "INC005",
     INCLUDE_PATH_INVALID: "INC006",
+    REQUIRE_INVALID: "INC007",
+    REQUIRE_NOT_ALIASED: "INC008",
 
     // Macro errors (MAC prefix)
     UNDEFINED_MACRO: "MAC001",

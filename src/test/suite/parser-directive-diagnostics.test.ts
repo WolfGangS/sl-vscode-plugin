@@ -31,7 +31,7 @@ code here`;
             assert.strictEqual(errors.length, 1, 'Should have one error');
             assert.strictEqual(errors[0].code, ErrorCodes.MALFORMED_DIRECTIVE);
             assert.ok(errors[0].message.includes('unknown'));
-            assert.strictEqual(errors[0].line, 1);
+            assert.strictEqual(errors[0].location.line, 1);
         });
 
         test('should error on invalid directive name', async () => {

@@ -28,7 +28,7 @@ suite('Lexer Diagnostics', () => {
         assert.strictEqual(errors.length, 1);
         assert.strictEqual(errors[0].code, ErrorCodes.UNTERMINATED_STRING);
         assert.strictEqual(errors[0].severity, DiagnosticSeverity.ERROR);
-        assert.strictEqual(errors[0].line, 1);
+        assert.strictEqual(errors[0].location.line, 1);
         assert.ok(errors[0].message.includes('Unterminated string'));
     });
 

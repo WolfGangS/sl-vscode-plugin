@@ -71,8 +71,8 @@ suite('IncludeProcessor Diagnostics', () => {
             assert.strictEqual(errors[0].severity, DiagnosticSeverity.ERROR);
             assert.strictEqual(errors[0].code, ErrorCodes.FILE_NOT_FOUND);
             assert.ok(errors[0].message.includes('missing.lsl'));
-            assert.strictEqual(errors[0].sourceFile, testFile);
-            assert.strictEqual(errors[0].line, 1);
+            assert.strictEqual(errors[0].location.sourceFile, testFile);
+            assert.strictEqual(errors[0].location.line, 1);
         });
 
         test('should not error when file exists', async () => {
@@ -143,7 +143,7 @@ suite('IncludeProcessor Diagnostics', () => {
             assert.strictEqual(errors[0].code, ErrorCodes.CIRCULAR_INCLUDE);
             assert.ok(errors[0].message.includes('Circular'));
             assert.ok(errors[0].message.includes('circular.lsl'));
-            assert.strictEqual(errors[0].line, 5);
+            assert.strictEqual(errors[0].location.line, 5);
         });
 
         test('should allow include when not circular', async () => {
@@ -209,7 +209,7 @@ suite('IncludeProcessor Diagnostics', () => {
             assert.strictEqual(errors[0].code, ErrorCodes.INCLUDE_DEPTH_EXCEEDED);
             assert.ok(errors[0].message.includes('Maximum include depth'));
             assert.ok(errors[0].message.includes('3'));
-            assert.strictEqual(errors[0].line, 10);
+            assert.strictEqual(errors[0].location.line, 10);
         });
 
         test('should not error when below max depth', async () => {
@@ -273,7 +273,7 @@ suite('IncludeProcessor Diagnostics', () => {
             assert.strictEqual(errors[0].severity, DiagnosticSeverity.ERROR);
             assert.strictEqual(errors[0].code, ErrorCodes.FILE_READ_ERROR);
             assert.ok(errors[0].message.includes('Failed to read'));
-            assert.strictEqual(errors[0].line, 7);
+            assert.strictEqual(errors[0].location.line, 7);
         });
 
         test('should not error when file is readable', async () => {
@@ -700,9 +700,9 @@ suite('IncludeProcessor Diagnostics', () => {
             // Then: Line numbers should be tracked correctly
             const errors = diagnostics.getAll();
             assert.strictEqual(errors.length, 3);
-            assert.strictEqual(errors[0].line, 5);
-            assert.strictEqual(errors[1].line, 12);
-            assert.strictEqual(errors[2].line, 23);
+            assert.strictEqual(errors[0].location.line, 5);
+            assert.strictEqual(errors[1].location.line, 12);
+            assert.strictEqual(errors[2].location.line, 23);
         });
 
         test('should handle partial success in nested includes', async () => {

@@ -8,63 +8,10 @@ import { Parser } from '../../shared/parser';
 import { Lexer } from '../../shared/lexer';
 import { normalizePath, HostInterface, NormalizedPath } from '../../interfaces/hostinterface';
 import { ConfigKey, FullConfigInterface } from '../../interfaces/configinterface';
+import { createMockHost } from './helpers/mockHost';
 
 suite('Parser Tests', () => {
     const testFile = normalizePath('/test/script.lsl');
-
-    // Create a minimal mock host for testing URI conversions
-    function createMockHost(): HostInterface {
-        return new class implements HostInterface {
-            config = {} as FullConfigInterface;
-
-            async readFile(path: NormalizedPath): Promise<string | null> {
-                return null;
-            }
-            async exists(path: NormalizedPath): Promise<boolean> {
-                return false;
-            }
-            async resolveFile(
-                filename: string,
-                from: NormalizedPath,
-                extensions?: string[],
-                includePaths?: string[]
-            ): Promise<NormalizedPath | null> {
-                return null;
-            }
-            async writeFile(p: NormalizedPath, content: string | Uint8Array): Promise<boolean> {
-                return false;
-            }
-            async readJSON<T = any>(p: NormalizedPath): Promise<T | null> {
-                return null;
-            }
-            async readYAML<T = any>(p: NormalizedPath): Promise<T | null> {
-                return null;
-            }
-            async readTOML<T = any>(p: NormalizedPath): Promise<T | null> {
-                return null;
-            }
-            async writeJSON(p: NormalizedPath, data: any, pretty?: boolean): Promise<boolean> {
-                return false;
-            }
-            async writeYAML(p: NormalizedPath, data: any): Promise<boolean> {
-                return false;
-            }
-            async writeTOML(p: NormalizedPath, data: Record<string, any>): Promise<boolean> {
-                return false;
-            }
-            fileNameToUri(fileName: NormalizedPath): string {
-                // Strip path to only include directories/filename after "test" directory
-                const testIndex = fileName.indexOf('test');
-                const relativePath = testIndex !== -1 ? fileName.substring(testIndex) : fileName;
-                // Normalize backslashes to forward slashes
-                const normalizedPath = relativePath.replace(/\\/g, '/');
-                return "unittest:///" + normalizedPath;
-            }
-            uriToFileName(uri: string): NormalizedPath {
-                return normalizePath(uri.replace("unittest:///", ""));
-            }
-        };
-    }
 
     //#region Basic Parser Tests
 

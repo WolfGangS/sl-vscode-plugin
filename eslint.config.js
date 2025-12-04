@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
+import stylistic from '@stylistic/eslint-plugin';
 
 export default [
   js.configs.recommended,
@@ -35,6 +36,7 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
+      '@stylistic': stylistic,
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
@@ -47,6 +49,7 @@ export default [
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
       '@typescript-eslint/no-unused-expressions': 'warn',
+      '@stylistic/no-trailing-spaces': 'warn',
       // Indentation rules
       'indent': ['error', 4, {
         'SwitchCase': 1,

@@ -15,7 +15,7 @@ import { ScriptLanguage } from './languageservice';
 import { Lexer, Token } from './lexer';
 import { MacroProcessor } from './macroprocessor';
 import { ConditionalProcessor } from './conditionalprocessor';
-import { DiagnosticCollector, DiagnosticSeverity, ErrorCodes } from './diagnostics';
+import { DiagnosticCollector, DiagnosticLocation, ErrorCodes, PreprocessorDiagnosticException, PreprocessorIncludeException, PreprocessorRequireException } from './diagnostics';
 import { IncludeInfo } from './parser';
 import path from 'path';
 
@@ -66,6 +66,8 @@ export class IncludeProcessor {
     private language: ScriptLanguage;
     private host: HostInterface;
 
+    private location!: DiagnosticLocation;
+
     constructor(language: ScriptLanguage, host: HostInterface) {
         this.language = language;
         this.host = host;
@@ -95,32 +97,63 @@ export class IncludeProcessor {
         column?: number,
         allowExternal: boolean = false,
     ): Promise<IncludeResult> {
-        let filename = include.file;
-        const line = include.line;
-        const isRequire = include.isRequire;
-        // Check max include depth
-        if (state.includeDepth >= state.maxIncludeDepth) {
-            const error = `Maximum include depth (${state.maxIncludeDepth}) exceeded for file: ${filename}`;
-
-            // INC003: Include depth exceeded
-            if (diagnostics) {
-                diagnostics.add({
-                    severity: DiagnosticSeverity.ERROR,
-                    code: ErrorCodes.INCLUDE_DEPTH_EXCEEDED,
-                    message: error,
-                    sourceFile: sourceFile,
-                    line: line ?? 0,
-                    column: column ?? 0,
-                    length: filename.length
-                });
+        try {
+            return await this.process(
+                include,
+                sourceFile,
+                state,
+                _macros,
+                _conditionals,
+                column,
+                allowExternal
+            );
+        } catch(e) {
+            let resolvedPath: NormalizedPath|null = null;
+            let msg = "";
+            if(e instanceof PreprocessorIncludeException) {
+                resolvedPath = e.resolvedPath;
             }
-
+            if(e instanceof PreprocessorDiagnosticException) {
+                if(diagnostics) diagnostics.addException(e);
+                msg = e.message;
+            } else {
+                msg = `${e}`;
+            }
             return {
                 success: false,
                 tokens: [],
-                resolvedPath: null,
-                error
+                resolvedPath,
+                error: msg
             };
+        }
+    }
+
+    private async process(
+        include: IncludeInfo,
+        sourceFile: NormalizedPath,
+        state: IncludeState,
+        _macros: MacroProcessor,
+        _conditionals: ConditionalProcessor,
+        column?: number,
+        allowExternal: boolean = false,
+    ) : Promise<IncludeResult> {
+        let filename = include.file;
+        const originalFileName = filename;
+        const line = include.line;
+        const isRequire = include.isRequire;
+        this.location = {
+            sourceFile: sourceFile,
+            line: line ?? 0,
+            column: column ?? 0,
+            length: filename.length
+        };
+        // Check max include depth
+        if (state.includeDepth >= state.maxIncludeDepth) {
+            // INC003: Include depth exceeded
+            throw this.error(
+                `Maximum include depth (${state.maxIncludeDepth}) exceeded for file: ${filename}`,
+                ErrorCodes.INCLUDE_DEPTH_EXCEEDED
+            );
         }
 
         // Resolve the include file path
@@ -133,35 +166,12 @@ export class IncludeProcessor {
                 // Regular require, relative lookup
                 includePaths = ["."];
             } else {
-                try {
-                    // get the alias path
-                    const aliasPath = await this.getLuauRequireAliasDir(filename, sourceFile, state);
-                    // Remove the alias from the filename
-                    filename = filename.split(path.sep).slice(1).join(path.sep);
-                    includePaths = [aliasPath];
-                    aliased = true;
-                } catch(error) {
-                    if(typeof(error) == "string") {
-                        if (diagnostics) {
-                            diagnostics.add({
-                                severity: DiagnosticSeverity.ERROR,
-                                code: ErrorCodes.FILE_NOT_FOUND,
-                                message: error,
-                                sourceFile: sourceFile,
-                                line: line ?? 0,
-                                column: column ?? 0,
-                                length: filename.length
-                            });
-                        }
-                        return {
-                            success: false,
-                            tokens: [],
-                            resolvedPath: null,
-                            error
-                        }
-                    }
-                    throw error;
-                }
+                // get the alias path
+                const aliasPath = await this.getLuauRequireAliasDir(filename, sourceFile, state);
+                // Remove the alias from the filename
+                filename = filename.split(path.sep).slice(1).join(path.sep);
+                includePaths = [aliasPath];
+                aliased = true;
             }
         } else {
             includePaths = [...(state.includePaths ?? [])];
@@ -190,53 +200,29 @@ export class IncludeProcessor {
         }
 
         if (!resolvedPath) {
-            const error = `Include file not found: ${filename}`;
-
             // INC001: File not found
-            if (diagnostics) {
-                diagnostics.add({
-                    severity: DiagnosticSeverity.ERROR,
-                    code: ErrorCodes.FILE_NOT_FOUND,
-                    message: error,
-                    sourceFile: sourceFile,
-                    line: line ?? 0,
-                    column: column ?? 0,
-                    length: filename.length
-                });
+            if(aliased) {
+                throw this.errorRequire(
+                    `Require file not found: ${filename}`,
+                    ErrorCodes.FILE_NOT_FOUND,
+                    originalFileName
+                )
+            } else {
+                throw this.error(
+                    `Include file not found: ${filename}`,
+                    ErrorCodes.FILE_NOT_FOUND
+                );
             }
-
-            return {
-                success: false,
-                tokens: [],
-                resolvedPath: null,
-                error
-            };
         }
 
         if(aliased) {
             // Check that the resolved path for an alias is definitley a child of the alias path.
             const relative = path.relative(includePaths[0], resolvedPath);
             if(!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
-                const error = `Require file was not inside alias directory`;
-
-                if (diagnostics) {
-                    diagnostics.add({
-                        severity: DiagnosticSeverity.ERROR,
-                        code: ErrorCodes.INCLUDE_PATH_INVALID,
-                        message: error,
-                        sourceFile: sourceFile,
-                        line: line ?? 0,
-                        column: column ?? 0,
-                        length: filename.length
-                    });
-                }
-
-                return {
-                    success: false,
-                    tokens: [],
-                    resolvedPath: null,
-                    error
-                };
+                throw this.error(
+                    `Require file was not inside alias directory`,
+                    ErrorCodes.INCLUDE_PATH_INVALID
+                );
             }
         }
 
@@ -244,27 +230,12 @@ export class IncludeProcessor {
 
         // Check for circular includes
         if (state.includeStack.includes(resolvedPath)) {
-            const error = `Circular include detected for file: ${resolvedPath}`;
-
             // INC002: Circular include
-            if (diagnostics) {
-                diagnostics.add({
-                    severity: DiagnosticSeverity.ERROR,
-                    code: ErrorCodes.CIRCULAR_INCLUDE,
-                    message: error,
-                    sourceFile: sourceFile,
-                    line: line ?? 0,
-                    column: column ?? 0,
-                    length: filename.length
-                });
-            }
-
-            return {
-                success: false,
-                tokens: [],
-                resolvedPath,
-                error
-            };
+            throw this.error(
+                `Circular include detected for file: ${resolvedPath}`,
+                ErrorCodes.CIRCULAR_INCLUDE,
+                resolvedPath
+            );
         }
 
         // Check include guards (only for #include, not require)
@@ -280,27 +251,11 @@ export class IncludeProcessor {
         // Read the include file
         const includeContent = await this.host.readFile(resolvedPath, aliased || allowExternal);
         if (!includeContent) {
-            const error = `Failed to read include file: ${resolvedPath}`;
-
-            // INC005: File read error
-            if (diagnostics) {
-                diagnostics.add({
-                    severity: DiagnosticSeverity.ERROR,
-                    code: ErrorCodes.FILE_READ_ERROR,
-                    message: error,
-                    sourceFile: sourceFile,
-                    line: line ?? 0,
-                    column: column ?? 0,
-                    length: filename.length
-                });
-            }
-
-            return {
-                success: false,
-                tokens: [],
-                resolvedPath,
-                error
-            };
+            throw this.error(
+                `Failed to read include file: ${resolvedPath}`,
+                ErrorCodes.FILE_READ_ERROR,
+                resolvedPath
+            );
         }
 
         // NOTE: Stack management moved to caller (processIncludeDirective in parser.ts)
@@ -324,21 +279,55 @@ export class IncludeProcessor {
         };
     }
 
+    private error(error:string, code:string, path:NormalizedPath|null = null) : PreprocessorIncludeException {
+        return PreprocessorIncludeException.error(
+            error,
+            this.location,
+            code
+        ).setPath(path)
+    }
+
+    private errorRequire(error:string, code:string, require:string|null = null, alias:string|null = null) : PreprocessorRequireException {
+        return PreprocessorRequireException.error(
+            error,
+            this.location,
+            code
+        ).setRequire(
+            require,
+            alias
+        );
+    }
+
     private async getLuauRequireAliasDir(requirePath:string, sourceFile:NormalizedPath, state:IncludeState) : Promise<string> {
         if(!requirePath.startsWith("@")) {
-            throw "Alias must start with @";
+            throw this.errorRequire(
+                "Alias must start with @",
+                ErrorCodes.REQUIRE_INVALID,
+                requirePath
+            );
         }
-        if(requirePath.endsWith(`${path.sep}..`) || requirePath.includes(`${path.sep}..${path.sep}`)) {
-            throw `Require alias cannot contain directory traversal`;
+        if(requirePath.split(path.sep).includes("..")) {
+            throw this.errorRequire(
+                `Require alias cannot contain directory traversal`,
+                ErrorCodes.REQUIRE_INVALID,
+                requirePath
+            );
         }
 
         let alias = "";
         let aliasLen = requirePath.split(path.sep)[0].length;
         alias = requirePath.slice(1,aliasLen);
-        if(alias.startsWith("sl-")) {
-            // Reserve sl-* alias for possible future use as a standard library system
-            throw `Alias 'sl-*' is reserved`
+        switch(alias.split("-")[0]) {
+            case "sl":
+                // Reserve sl-* alias for possible future use as a standard library system
+                throw this.errorRequire(
+                    `Alias 'sl-*' is reserved`,
+                    ErrorCodes.REQUIRE_INVALID,
+                    requirePath,
+                    alias
+                );
         }
+
 
         if(!state.requireMap) {
             state.requireMap = {};
@@ -347,7 +336,12 @@ export class IncludeProcessor {
 
         if(map[alias]) return map[alias];
 
-        throw `Require alias not found: ${requirePath}`;
+        throw this.errorRequire(
+            `Require alias not found: ${requirePath}`,
+            ErrorCodes.REQUIRE_NOT_ALIASED,
+            requirePath,
+            alias
+        );
     }
 
     private async resolveLuaurcFileAliases(sourceFile:string, rcMap: LuauRCRequireMap) : Promise<RequireMap> {

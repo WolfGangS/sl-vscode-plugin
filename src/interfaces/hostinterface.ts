@@ -45,6 +45,7 @@ export interface HostInterface {
     /** Central configuration provider (framework-agnostic). */
     config: FullConfigInterface;
     exists(p: NormalizedPath, unsafe?: boolean): Promise<boolean>;
+    existsInWorkspace(p: NormalizedPath): Promise<NormalizedPath|null>;
     resolveFile(
         filename: string,        // raw filename from directive
         from: NormalizedPath,   // path of current source file
@@ -61,6 +62,11 @@ export interface HostInterface {
     writeJSON(p: NormalizedPath, data: any, pretty?: boolean): Promise<boolean>;
     writeYAML(p: NormalizedPath, data: any): Promise<boolean>; // optional (not all hosts need YAML)
     writeTOML(p: NormalizedPath, data: Record<string, any>): Promise<boolean>; // optional
+
+    readWorkspaceFile(p: string) : Promise<string|null>;
+    writeWorkspaceFile(p: string, content:string) : Promise<boolean>;
+
+    runCommandInWorkspace(cmd: string, args: string[]) : Promise<any>;
 
     listWorkspaceFolders?(): Promise<NormalizedPath[]>; // optional for non-workspace hosts
     // Extension / capability discovery ---------------------------------------
