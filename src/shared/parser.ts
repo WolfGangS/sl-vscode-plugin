@@ -278,7 +278,7 @@ export class Parser {
 
         // State Conditionals are passed between parsers
         // so we need to check that we exit at the same level we came in on
-        const unclosedBefore = this.state.conditionals.getUnclosedBlocks();
+        const entryBlock = this.state.conditionals.getCurrentBlockIdentifier();
 
         // First pass: process all tokens to discover all required modules
         while (!this.isAtEnd()) {
@@ -315,10 +315,9 @@ export class Parser {
 
         // Check for unclosed conditional blocks (PAR004)
         // State Conditionals are passed between parsers
-        // so we need to check that we exit at the same level we came in on
-        const unclosed = this.state.conditionals.getUnclosedBlocks();
-        if (unclosed.length != unclosedBefore.length) {
-            for (const block of unclosed) {
+        // so we need to check that we exit at the same block we came in on
+        if (this.state.conditionals.getCurrentBlockIdentifier() !== entryBlock) {
+            for (const block of this.state.conditionals.getUnclosedBlocks()) {
                 this.diagnostics.addError(
                     `Unterminated #${block.directive} (started at line ${block.line})`,
                     {
