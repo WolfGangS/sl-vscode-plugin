@@ -1096,6 +1096,8 @@ default {
             assert.strictEqual(result.success, true, "Preprocessing should succeed");
             assert.ok(result.content.length > 0, "Should have output content");
 
+            fs.writeFileSync(expectedFile + "2", result.content);
+
             // Compare actual output to expected output
             const actualNormalized = normalizeOutput(result.content);
             const expectedNormalized = normalizeOutput(expected);

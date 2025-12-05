@@ -275,9 +275,16 @@ export class Parser {
      * Parse the token stream and produce preprocessed output
      */
     public async parse(): Promise<ParserResult> {
+
+        // State Conditionals are passed between parsers
+        // so we need to check that we exit at the same level we came in on
+        const entryBlock = this.state.conditionals.getCurrentBlockIdentifier();
+
         // First pass: process all tokens to discover all required modules
         while (!this.isAtEnd()) {
             const token = this.current();
+
+            console.error(token);
 
             if (token.isDirective()) {
                 const positionAdvanced = await this.handleDirective(token);
@@ -307,9 +314,10 @@ export class Parser {
         }
 
         // Check for unclosed conditional blocks (PAR004)
-        const unclosed = this.state.conditionals.getUnclosedBlocks();
-        if (unclosed.length > 0) {
-            for (const block of unclosed) {
+        // State Conditionals are passed between parsers
+        // so we need to check that we exit at the same block we came in on
+        if (this.state.conditionals.getCurrentBlockIdentifier() !== entryBlock) {
+            for (const block of this.state.conditionals.getUnclosedBlocks()) {
                 this.diagnostics.addError(
                     `Unterminated #${block.directive} (started at line ${block.line})`,
                     {
@@ -395,13 +403,48 @@ export class Parser {
         // Skip to next token (should be whitespace then string literal)
         parser.advance();
 
+        if(!parser.getState().conditionals.isActive()) {
+            return;
+        }
+
         // Skip only horizontal whitespace, not newlines
         while (!parser.isAtEnd() && parser.current().type === TokenType.WHITESPACE) {
             parser.advance();
         }
 
         // PAR002: Check for missing filename argument
-        if (parser.isAtEnd() || parser.current().type === TokenType.NEWLINE || !parser.current().isString()) {
+        let filename:string|null = null;
+
+        if (!parser.isAtEnd()) {
+            const current = parser.current();
+            if (current.isString()) {
+                const fileToken = parser.current();
+                console.error("INCLUDE",token,fileToken);
+                filename = parser.extractStringValue(fileToken.value);
+            }
+            else if(current.type == TokenType.OPERATOR && current.value == "<") {
+                parser.advance();
+                let closed = false;
+                filename = "";
+                while(!parser.isAtEnd()) {
+                    const current = parser.current();
+                    if(current.type == TokenType.OPERATOR && current.value == ">") {
+                        closed = true;
+                        break;
+                    }
+                    if(current.type == TokenType.BLOCK_COMMENT_START) break;
+                    if(current.type == TokenType.LINE_COMMENT) break;
+                    if(current.type == TokenType.NEWLINE) break;
+                    filename += current.value;
+                    parser.advance();
+                }
+                if(!closed) {
+                    filename = null;
+                }
+            }
+        }
+
+        if(filename == null) {
             parser.diagnostics.addError(
                 '#include directive requires a filename argument',
                 {
@@ -414,9 +457,6 @@ export class Parser {
             );
             return;
         }
-
-        const fileToken = parser.current();
-        const filename = parser.extractStringValue(fileToken.value);
 
         // Record the include for tracking
         const include : IncludeInfo = {
@@ -485,11 +525,12 @@ export class Parser {
         // #define NAME [(params)] replacement-text
         const directiveToken = parser.current();
         parser.advance();
+        if(!parser.getState().conditionals.isActive()) {
+            return;
+        }
 
         // Skip only horizontal whitespace, not newlines
-        while (!parser.isAtEnd() && parser.current().type === TokenType.WHITESPACE) {
-            parser.advance();
-        }
+        parser.skipNonNewlineWhiteSpace();
 
         // PAR002: Check for missing macro name
         if (parser.isAtEnd() || parser.current().type === TokenType.NEWLINE) {
@@ -587,6 +628,9 @@ export class Parser {
         // #undef NAME
         const directiveToken = parser.current();
         parser.advance();
+        if(!parser.getState().conditionals.isActive()) {
+            return;
+        }
 
         // Skip only horizontal whitespace, not newlines
         while (!parser.isAtEnd() && parser.current().type === TokenType.WHITESPACE) {
@@ -1080,6 +1124,12 @@ export class Parser {
         return tokens.slice(start, end);
     }
 
+    private skipNonNewlineWhiteSpace(): void {
+        while (!this.isAtEnd() && this.current().type == TokenType.WHITESPACE) {
+            this.advance();
+        }
+    }
+
     /**
      * Collect tokens for directive body (rest of line)
      * Supports line continuation with backslash (\)
@@ -1090,6 +1140,19 @@ export class Parser {
 
         while (!this.isAtEnd()) {
             const token = this.current();
+
+            if(token.type == TokenType.LINE_COMMENT) {
+                this.advance();
+                break;
+            }
+            if(token.type == TokenType.BLOCK_COMMENT_START) {
+                this.advance();
+                while(!this.isAtEnd() && this.current().type != TokenType.BLOCK_COMMENT_END) {
+                    this.advance();
+                }
+                this.advance();
+                break;
+            }
 
             // Check if token is or contains a newline
             const hasNewline = token.type === TokenType.NEWLINE || token.value.includes('\n');

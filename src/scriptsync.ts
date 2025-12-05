@@ -395,7 +395,6 @@ export class ScriptSync implements vscode.Disposable {
                 this.language
             );
 
-
             if (preprocessorResult.issues && preprocessorResult.issues.length > 0) {
                 const diagnostics = ScriptSync.preprocessorErrorsToDiagnostics(
                     preprocessorResult.issues,
