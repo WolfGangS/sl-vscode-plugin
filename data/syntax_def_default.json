@@ -15830,7 +15830,7 @@
             }
           },
           {
-            "comment": "encode lua value as json preserving types",
+            "comment": "encode lua value as json preserving types. use tight to encode more compactly",
             "name": "slencode",
             "parameters": [
               {
@@ -15851,6 +15851,10 @@
                     "nil"
                   ]
                 }
+              },
+              {
+                "name": "tight",
+                "type": "boolean"
               }
             ],
             "returnType": "string"
