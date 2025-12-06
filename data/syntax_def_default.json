@@ -15804,7 +15804,7 @@
             "returnType": "string"
           },
           {
-            "comment": "decode json string to lua value perserving types",
+            "comment": "decode json string to lua value preserving types",
             "name": "sldecode",
             "parameters": [
               {
