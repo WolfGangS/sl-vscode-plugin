@@ -180,9 +180,16 @@ export class LuaLSPPlugin extends BasePlugin {
             // Discard array config, theres not much else we can do to fix it
             luaulspDefs = {}
         }
-        luaulspDefs["sl-slua"] = defsFile;
+        const newDefs : {[k:string]:string} = {};
+        for(const defKey in luaulspDefs) {
+            if(!defKey.startsWith("sl-")) {
+                console.error("DEF",defKey);
+                newDefs[defKey] = luaulspDefs[defKey];
+            }
+        }
+        newDefs["sl-slua"] = defsFile;
 
-        await luaulsp.update("types.definitionFiles", luaulspDefs);
+        await luaulsp.update("types.definitionFiles", newDefs);
         await luaulsp.update("types.documentationFiles", [docsFile]);
         await luaulsp.update("platform.type", "standard");
         await luaulsp.update("sourcemap.enabled", false);
