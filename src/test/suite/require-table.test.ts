@@ -14,7 +14,7 @@ import * as assert from 'assert';
 import * as path from 'path';
 import { Parser } from '../../shared/parser';
 import { Lexer } from '../../shared/lexer';
-import { NormalizedPath, normalizePath } from '../../interfaces/hostinterface';
+import { HostInterface, NormalizedPath, normalizePath } from '../../interfaces/hostinterface';
 
 suite('Require Table Tests', () => {
     const testFile = normalizePath('/test/main.luau');
@@ -375,7 +375,7 @@ suite('Require Table Tests', () => {
             const fileD = normalizePath(path.join(workspaceRoot, 'complex_d.luau'));
 
             // Create a hybrid host that uses in-memory files
-            const memoryHost = {
+            const memoryHost : HostInterface = {
                 config: {} as any,
                 readFile: async (p: NormalizedPath): Promise<string | null> => {
                     return files.get(p) || null;
@@ -400,6 +400,7 @@ suite('Require Table Tests', () => {
                 readTOML: async (): Promise<any> => null,
                 writeYAML: async (): Promise<boolean> => true,
                 writeTOML: async (): Promise<boolean> => true,
+                existsInSameWorkspace: async (knownPath: string, desiredPath: string): Promise<boolean> => false,
                 fileNameToUri: (fileName: NormalizedPath): string => {
                     // Strip path to only include directories/filename after "test" directory
                     const testIndex = fileName.indexOf('test');

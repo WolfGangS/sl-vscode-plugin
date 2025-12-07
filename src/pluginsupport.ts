@@ -186,7 +186,7 @@ export class LuaLSPPlugin extends BasePlugin {
         await luaulsp.update("types.documentationFiles", [docsFile]);
         await luaulsp.update("platform.type", "standard");
         await luaulsp.update("sourcemap.enabled", false);
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         // Execute luau-lsp's command to realod the language sever
         await vscode.commands.executeCommand("luau-lsp.reloadServer")
     }

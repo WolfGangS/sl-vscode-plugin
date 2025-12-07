@@ -250,6 +250,16 @@ export class VSCodeHost implements HostInterface {
         return (await readTOMLFile(p)) as T | null;
     }
 
+    async existsInSameWorkspace(knownPath: string, desiredPath: string): Promise<boolean> {
+        const knownUri = vscode.Uri.file(normalizePath(knownPath));
+        const workspaceDir = vscode.workspace.getWorkspaceFolder(knownUri);
+        if(!workspaceDir) return false;
+        const desiredUri = vscode.Uri.file(normalizePath(workspaceDir.uri.fsPath + path.sep + desiredPath));
+        const dWorkspaceDir = vscode.workspace.getWorkspaceFolder(desiredUri);
+        if(!dWorkspaceDir) return false;
+        return dWorkspaceDir.uri.fsPath == workspaceDir.uri.fsPath;
+    }
+
     async exists(filename: NormalizedPath, unsafe?: boolean): Promise<boolean> {
         if (unsafe) {
             return await fileExists(filename);
