@@ -388,7 +388,7 @@ export class ScriptSync implements vscode.Disposable {
                         normalizePath(masterFilePath),
                         this.language
                     );
-
+                    console.error(preprocessorResult);
 
                     if (preprocessorResult.issues && preprocessorResult.issues.length > 0) {
                         const diagnostics = ScriptSync.preprocessorErrorsToDiagnostics(

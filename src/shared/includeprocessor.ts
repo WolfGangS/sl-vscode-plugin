@@ -173,7 +173,7 @@ export class IncludeProcessor {
             includePaths,
             aliased || allowExternal,
         );
-        console.error("Resolve: ", [filename, sourceFile, extensions, includePaths, aliased, allowExternal], resolvedPath);
+        // console.error("Resolve: ", [filename, sourceFile, extensions, includePaths, aliased, allowExternal], resolvedPath);
 
         if(!resolvedPath && this.language == "luau") {
             // Luau require supports default file in folder include mechanic 'init.luau'
