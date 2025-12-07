@@ -20,8 +20,8 @@ jobs:
         name: Make version
         run: |
           CURRENT_DATE=$(date "+%Y.%m.%d")
-          NEW_VERSION=${CURRENT_DATE}-${GITHUB_RUN_NUMBER}
-          echo "version=${{ github.ref == 'refs/heads/wolfgang/edge' && 'edge-' || '' }}${NEW_VERSION}" >> $GITHUB_OUTPUT
+          NEW_VERSION=${CURRENT_DATE}-${{ github.ref == 'refs/heads/wolfgang/edge' && 'rc.' || '' }}${GITHUB_RUN_NUMBER}
+          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
       - name: Set version
         run: |
           npm version "${{steps.version.outputs.version}}" --no-git-tag-version
@@ -38,6 +38,6 @@ jobs:
         id: create_release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ github.ref == 'refs/heads/wolfgang/edge' && 'edge-' || ''}}${{steps.version.outputs.version}}
+          tag: ${{steps.version.outputs.version}}
           prerelease: ${{ github.ref == 'refs/heads/wolfgang/edge' && 'true' || ''}}
           artifacts: sl-vscode-plugin-*.vsix
