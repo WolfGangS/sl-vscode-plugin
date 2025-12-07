@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [wolfgang/develop]
+    branches: [wolfgang/develop, wolfgang/edge]
 
 jobs:
   ci:
@@ -39,4 +39,5 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{steps.version.outputs.version}}
+          prerelease: ${{ github.ref == 'refs/heads/wolfgang/edge' && 'true' || ''}}
           artifacts: sl-vscode-plugin-*.vsix
