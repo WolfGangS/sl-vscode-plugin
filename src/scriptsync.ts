@@ -83,7 +83,7 @@ export class ScriptSync implements vscode.Disposable {
             this.subscribe(scriptId, viewerDocument);
         }
         if(this.language == "luau") {
-            this.config.on(ConfigKey.PreprocessorConstantsInSLua, (config) => {
+            this.config.on(ConfigKey.PreprocessorConstantsInSLua, (_config) => {
                 this.initializeSystemMacros(this.language);
             });
         }
