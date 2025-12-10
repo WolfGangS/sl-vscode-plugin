@@ -120,6 +120,9 @@ suite("Lexing Preprocessor Test Suite", () => {
             async writeTOML(p: NormalizedPath, data: Record<string, any>): Promise<boolean> {
                 return false;
             }
+            async existsInSameWorkspace(knownPath: string, desiredPath: string): Promise<boolean> {
+                return false;
+            }
             fileNameToUri(fileName: NormalizedPath): string {
                 // Strip path to only include directories/filename after "test" directory
                 const testIndex = fileName.indexOf('test');
@@ -181,6 +184,9 @@ suite("Lexing Preprocessor Test Suite", () => {
                 return false;
             }
             async writeTOML(p: NormalizedPath, data: Record<string, any>): Promise<boolean> {
+                return false;
+            }
+            async existsInSameWorkspace(knownPath: string, desiredPath: string): Promise<boolean> {
                 return false;
             }
             fileNameToUri(fileName: NormalizedPath): string {

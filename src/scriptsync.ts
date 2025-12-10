@@ -25,7 +25,7 @@ import {
 } from "./utils";
 import { ScriptLanguage } from "./shared/languageservice";
 import { CompilationResult, RuntimeDebug, RuntimeError } from "./viewereditwsclient";
-import { normalizePath } from "./interfaces/hostinterface";
+import { HostInterface, normalizePath } from "./interfaces/hostinterface";
 import { SynchService } from "./synchservice";
 import { IncludeInfo } from "./shared/parser";
 import { sha256 } from "js-sha256";
@@ -51,6 +51,7 @@ export class ScriptSync implements vscode.Disposable {
     private diagnosticSources: Set<string> = new Set();
     private lineMappings?: LineMapping[];
     private config: ConfigService;
+    private host: HostInterface;
 
     private includedFiles : IncludeInfo[] = [];
 
@@ -61,6 +62,7 @@ export class ScriptSync implements vscode.Disposable {
         config: ConfigService,
         scriptId?: string,
         viewerDocument?: vscode.TextDocument,
+        host?: HostInterface,
     ) {
         this.config = config;
 
@@ -69,10 +71,12 @@ export class ScriptSync implements vscode.Disposable {
         this.macros = new MacroProcessor(this.language);
         this.initializeSystemMacros(language);
 
+        this.host = host ?? new VSCodeHost();
+
         // Initialize preprocessor with macro processor
         const enabled = config.getConfig<boolean>(ConfigKey.PreprocessorEnable) ?? true;
         if (enabled) {
-            this.preprocessor = new LexingPreprocessor(new VSCodeHost(), config, this.macros);
+            this.preprocessor = new LexingPreprocessor(this.host, config, this.macros);
         }
 
         this.masterDocument = masterDocument;
