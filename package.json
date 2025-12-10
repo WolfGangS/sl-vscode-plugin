@@ -132,6 +132,12 @@
             "minimum": 1,
             "maximum": 50,
             "description": "Maximum nesting depth for #include and require() directives"
+          },
+          "slVscodeEdit.preprocessor.constantsInSLua": {
+            "title": "Use constants in SLua",
+            "type": "boolean",
+            "default": false,
+            "description": "Enable predefined LSL stlye preproc macro constants in slua"
           }
         }
       },
