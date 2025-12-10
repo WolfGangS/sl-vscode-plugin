@@ -981,7 +981,6 @@ export class Lexer {
         let str = this.advance();
         char = this.config.stringInterpDelimiter.char;
         const open = this.config.stringInterpDelimiter.open;
-        const close = this.config.stringInterpDelimiter.close;
         const escape = this.config.stringInterpDelimiter.escape;
         let escaped = false;
         let done = false;
@@ -1023,15 +1022,15 @@ export class Lexer {
             const pop = this.context.interpolatedStringDepth.pop();
             if(pop !== 0 && !(pop == 1 && finish && start)) {
                 this.diagnostics.addError(
-                        `String interpolation ended with depth: ${pop}`,
-                        {
-                            line: startLine,
-                            column: startColumn,
-                            length: str.length,
-                            sourceFile: this.sourceFile,
-                        },
-                        ErrorCodes.UNTERMINATED_STRING
-                    );
+                    `String interpolation ended with depth: ${pop}`,
+                    {
+                        line: startLine,
+                        column: startColumn,
+                        length: str.length,
+                        sourceFile: this.sourceFile,
+                    },
+                    ErrorCodes.UNTERMINATED_STRING
+                );
             }
         }
 
