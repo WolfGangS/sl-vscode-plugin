@@ -195,7 +195,7 @@ export class LuaLSPPlugin extends BasePlugin {
                 defsFiles[defKey] = luaulspDefs[defKey];
             }
         }
-        console.error(defsFiles);
+
         await luaulsp.update("types.definitionFiles", defsFiles);
         await luaulsp.update("types.documentationFiles", [docsFile]);
         await luaulsp.update("platform.type", "standard");

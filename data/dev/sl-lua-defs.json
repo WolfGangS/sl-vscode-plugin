@@ -91,6 +91,438 @@
       "name": "LLEventsProto",
       "definition": {
         "kind": "table",
+        "properties": [
+          {
+            "name": "touch_start",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "touch",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "touch_end",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "collision_start",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "collision",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "collision_end",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "sensor",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "on_damage",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "final_damage",
+            "type": {
+              "kind": "union",
+              "types": [
+                "DetectedEventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "at_rot_target",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "at_target",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "attach",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "changed",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "control",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "dataserver",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "email",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "experience_permissions",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "experience_permissions_denied",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "game_control",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "http_request",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "http_response",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "land_collision",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "land_collision_end",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "land_collision_start",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "link_message",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "linkset_data",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "listen",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "money",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "moving_end",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "moving_start",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "no_sensor",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "not_at_rot_target",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "not_at_target",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "object_rez",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "on_death",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "on_rez",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "path_update",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "remote_data",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "run_time_permissions",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "state_entry",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "state_exit",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "timer",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          },
+          {
+            "name": "transaction_result",
+            "type": {
+              "kind": "union",
+              "types": [
+                "EventHandler",
+                "nil"
+              ]
+            }
+          }
+        ],
         "methods": [
           {
             "name": "eventNames",
@@ -587,6 +1019,21 @@
       "name": "LLTimers",
       "type": "LLTimersProto",
       "comment": "LLTimers object"
+    },
+    {
+      "comment": "loadstring is removed in slua",
+      "name": "loadstring",
+      "type": "nil"
+    },
+    {
+      "comment": "getfenv is removed in slua",
+      "name": "getfenv",
+      "type": "nil"
+    },
+    {
+      "comment": "setfenv is removed in slua",
+      "name": "setfenv",
+      "type": "nil"
     }
   ],
   "globalFunctions": [
