@@ -457,7 +457,7 @@ export class ScriptSync implements vscode.Disposable {
     }
 
     private prefixWithMetaInformation(content:string, hash: string) : string {
-        console.error("PREFIX ENABLED", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false));
+        // console.error("PREFIX ENABLED", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false));
         if(!this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false)) {
             return content;
         }
