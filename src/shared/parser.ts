@@ -287,8 +287,6 @@ export class Parser {
         while (!this.isAtEnd()) {
             const token = this.current();
 
-            console.error(token);
-
             if (token.isDirective()) {
                 const positionAdvanced = await this.handleDirective(token);
                 if (!positionAdvanced) {
