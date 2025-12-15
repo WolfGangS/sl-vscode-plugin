@@ -4,6 +4,7 @@
   "description": "Binding extension for external LSL and SLua editing from the Second Life viewer.",
   "version": "1.0.2",
   "publisher": "lindenlab",
+  "icon": "sl-logo-vscode.png",
   "extensionDependencies": [],
   "engines": {
     "vscode": "^1.85.0"
