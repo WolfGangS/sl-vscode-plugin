@@ -86,6 +86,11 @@ export class ScriptSync implements vscode.Disposable {
         if (scriptId && viewerDocument) {
             this.subscribe(scriptId, viewerDocument);
         }
+        if(this.language == "luau") {
+            this.config.on(ConfigKey.PreprocessorConstantsInSLua, (_config) => {
+                this.initializeSystemMacros(this.language);
+            });
+        }
     }
 
     public async initialize() : Promise<void> {
@@ -525,30 +530,36 @@ export class ScriptSync implements vscode.Disposable {
             return;
         }
 
+        if(language === "luau" && !this.config.getConfig<boolean>(ConfigKey.PreprocessorConstantsInSLua, false)) {
+            return;
+        }
+
         this.macros.clear();
         if (language === "lsl") {
-            this.macros.defineSystemMacro("__LINE__", (context) => context.line.toString());
-            this.macros.defineSystemMacro("__FILE__", (context) => `"${path.normalize(context.sourceFile)}"`);
-            this.macros.defineSystemMacro("__SHORTFILE__", (context) => `"${path.basename(path.normalize(context.sourceFile))}"`);
-            this.macros.defineSystemMacro("__AGENTID__", (_context) => `"${ScriptSync.getCurrentAgentId()}"`);
             this.macros.defineSystemMacro("__AGENTKEY__", (_context) => `"${ScriptSync.getCurrentAgentId()}"`);
             this.macros.defineSystemMacro("__AGENTIDRAW__", (_context) => ScriptSync.getCurrentAgentId());
-            this.macros.defineSystemMacro("__AGENTNAME__", (_context) => `"${ScriptSync.getCurrentAgentName()}"`);
-            //this.macros.defineSystemMacro("__ASSETID__", (_context) => `"${getCurrentAssetId()}"`);
-            this.macros.defineSystemMacro("__DATE__", (_context) => {
-                let date = new Date();
-                return `"${date.toISOString().split("T")[0]}"`;
-            });
-            this.macros.defineSystemMacro("__TIME__", (_context) => {
-                let date = new Date();
-                return `"${date.toISOString().split("T")[1].split(".")[0]}"`;
-            });
-            this.macros.defineSystemMacro("__TIMESTAMP__", (_context) => {
-                let date = new Date();
-                return `"${date.toISOString()}"`;
-            });
-            this.macros.defineSystemMacro("__UNIXTIME__", ()=>  `${Math.floor(Date.now() / 1000)}`);
+        } else if(language === "luau") {
+            this.macros.defineSystemMacro("__AGENTKEY__", (_context) => `uuid("${ScriptSync.getCurrentAgentId()}")`);
         }
+        this.macros.defineSystemMacro("__LINE__", (context) => context.line.toString());
+        this.macros.defineSystemMacro("__FILE__", (context) => `"${path.normalize(context.sourceFile)}"`);
+        this.macros.defineSystemMacro("__SHORTFILE__", (context) => `"${path.basename(path.normalize(context.sourceFile))}"`);
+        this.macros.defineSystemMacro("__AGENTID__", (_context) => `"${ScriptSync.getCurrentAgentId()}"`);
+        this.macros.defineSystemMacro("__AGENTNAME__", (_context) => `"${ScriptSync.getCurrentAgentName()}"`);
+        //this.macros.defineSystemMacro("__ASSETID__", (_context) => `"${getCurrentAssetId()}"`);
+        this.macros.defineSystemMacro("__DATE__", (_context) => {
+            let date = new Date();
+            return `"${date.toISOString().split("T")[0]}"`;
+        });
+        this.macros.defineSystemMacro("__TIME__", (_context) => {
+            let date = new Date();
+            return `"${date.toISOString().split("T")[1].split(".")[0]}"`;
+        });
+        this.macros.defineSystemMacro("__TIMESTAMP__", (_context) => {
+            let date = new Date();
+            return `"${date.toISOString()}"`;
+        });
+        this.macros.defineSystemMacro("__UNIXTIME__", ()=>  `${Math.floor(Date.now() / 1000)}`);
     }
 
     public dispose(): void {
