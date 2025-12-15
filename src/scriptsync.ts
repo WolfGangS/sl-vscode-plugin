@@ -93,6 +93,17 @@ export class ScriptSync implements vscode.Disposable {
         }
     }
 
+    public async initialize() : Promise<void> {
+        const masterFilePath: string = this.getMasterFilePath();
+
+        const originalContent = await fs.promises.readFile(
+            masterFilePath,
+            "utf8",
+        );
+
+        await this.preProcessContent(originalContent);
+    }
+
     //====================================================================
     //#region utilities
     public showMasterDocument(): void {
@@ -372,84 +383,90 @@ export class ScriptSync implements vscode.Disposable {
     }
     //#endregion
 
+    public async preProcessContent(originalContent: string): Promise<string> {
+        // Check if preprocessing is enabled
+        if(!this.preprocessor) return originalContent;
+        if(!this.config.getConfig<boolean>(ConfigKey.PreprocessorEnable)) return originalContent;
+
+        this.clearDiagnostics();
+
+        const masterFilePath: string = this.getMasterFilePath();
+        const baseName: string = path.basename(masterFilePath);
+        let preprocessorResult: PreprocessorResult | null = null;
+        let finalContent = originalContent;
+        try {
+            console.log(`Preprocessing enabled for: ${baseName}`);
+
+            this.macros.clearNonSystemMacros();
+            preprocessorResult = await this.preprocessor.process(
+                originalContent,
+                normalizePath(masterFilePath),
+                this.language
+            );
+
+            if (preprocessorResult.issues && preprocessorResult.issues.length > 0) {
+                const diagnostics = ScriptSync.preprocessorErrorsToDiagnostics(
+                    preprocessorResult.issues,
+                    `${preprocessorResult.language} Preprocessor`
+                );
+                this.addDiagnostics(diagnostics);
+            }
+
+            if (preprocessorResult.includes && preprocessorResult.includes.length > 0) {
+                this.includedFiles = preprocessorResult.includes;
+            }
+
+            if (preprocessorResult.success) {
+                finalContent = preprocessorResult.content;
+                this.lineMappings = preprocessorResult.lineMappings;
+
+                console.log(
+                    `${preprocessorResult.language.toUpperCase()} preprocessing completed successfully for: ${baseName}`,
+                );
+            } else {
+                // Preprocessing failed, use original content and show error
+                finalContent = originalContent;
+
+                vscode.window.showErrorMessage("Preprocessing failed");
+            }
+        } catch (error) {
+            // Fallback to original content on any unexpected errors
+            finalContent = originalContent;
+            const errorMessage = `Preprocessing error for ${baseName}: ${error instanceof Error ? error.message : String(error)}`;
+            console.error(errorMessage);
+            vscode.window.showErrorMessage(errorMessage);
+        }
+        return finalContent;
+    }
+
     public async handleMasterSaved(): Promise<void> {
         try {
             // Read the original content
             const masterFilePath: string = this.getMasterFilePath();
-            const baseName: string = path.basename(masterFilePath);
 
             const originalContent = await fs.promises.readFile(
                 masterFilePath,
                 "utf8",
             );
-            let finalContent = originalContent;
-            let preprocessorResult: PreprocessorResult | null = null;
-
-            this.clearDiagnostics();
-            // Check if preprocessing is enabled
-            if (this.preprocessor && this.config.getConfig<boolean>(ConfigKey.PreprocessorEnable)) {
-                try {
-                    console.log(`Preprocessing enabled for: ${baseName}`);
-
-                    this.macros.clearNonSystemMacros();
-                    preprocessorResult = await this.preprocessor.process(
-                        originalContent,
-                        normalizePath(masterFilePath),
-                        this.language
-                    );
-                    console.error(preprocessorResult);
-
-                    if (preprocessorResult.issues && preprocessorResult.issues.length > 0) {
-                        const diagnostics = ScriptSync.preprocessorErrorsToDiagnostics(
-                            preprocessorResult.issues,
-                            `${preprocessorResult.language} Preprocessor`
-                        );
-                        this.addDiagnostics(diagnostics);
-                    }
-
-                    if(preprocessorResult.includes && preprocessorResult.includes.length > 0) {
-                        this.includedFiles = preprocessorResult.includes;
-                    }
-
-                    if (preprocessorResult.success) {
-                        finalContent = preprocessorResult.content;
-                        this.lineMappings = preprocessorResult.lineMappings;
-
-                        console.log(
-                            `${preprocessorResult.language.toUpperCase()} preprocessing completed successfully for: ${baseName}`,
-                        );
-                    } else {
-                        // Preprocessing failed, use original content and show error
-                        finalContent = originalContent;
-
-                        vscode.window.showErrorMessage("Preprocessing failed");
-                    }
-                } catch (error) {
-                    // Fallback to original content on any unexpected errors
-                    finalContent = originalContent;
-                    const errorMessage = `Preprocessing error for ${baseName}: ${
-                        error instanceof Error ? error.message : String(error)
-                    }`;
-                    console.error(errorMessage);
-                    vscode.window.showErrorMessage(errorMessage);
-                }
-            } else {
-                console.log(
-                    `Preprocessing disabled, using original content for: ${baseName}`,
-                );
-            }
+            let finalContent = await this.preProcessContent(originalContent);
 
             const sha = sha256.create();
             sha.update(finalContent);
             const hash = sha.hex();
 
-            console.error(finalContent, hash);
+            // console.error(finalContent, hash);
             finalContent = this.prefixWithMetaInformation(finalContent, hash);
 
             // Walk through all TrackedDocuments and save their finalContents if the hash has changed
             await Promise.all(
                 this.getFileMappingsFilteredByHash(hash)
                     .map((mapping) => {
+                        if(masterFilePath == mapping.viewerDocument.fileName) {
+                            // Do not write to the same file we are processing from
+                            // Allows quick editing of a script externally that hasnt matched
+                            // Without the script extending forever if the preproc is enabled
+                            return Promise.resolve();
+                        }
                         mapping.hash = hash;
                         return fs.promises.writeFile(
                             mapping.viewerDocument.fileName,
@@ -466,14 +483,14 @@ export class ScriptSync implements vscode.Disposable {
     }
 
     private prefixWithMetaInformation(content:string, hash: string) : string {
-        console.error("PREFIX ENABLED", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false));
+        // console.error("PREFIX ENABLED", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false));
         if(!this.config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput,false)) {
             return content;
         }
         const meta : string[]= [];
         const date = (new Date()).toISOString().split("T");
 
-        console.error("PREFIX")
+        // console.error("PREFIX")
 
         const path = vscode.workspace.asRelativePath(this.masterDocument.uri.fsPath);
 
@@ -482,7 +499,7 @@ export class ScriptSync implements vscode.Disposable {
         meta.push(`${comment} @file ${path}`);
         meta.push(`${comment} @hash ${hash}`);
         meta.push(`${comment} @date ${date[0]} ${date[1].split(".")[0]}`);
-        console.error("PREFIX CREATOR", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator,false));
+        // console.error("PREFIX CREATOR", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator,false));
         if(this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator, false)) {
             meta.push(`${comment} @creator ${ScriptSync.getCurrentAgentName()}`);
             meta.push(`${comment} @creatorID ${ScriptSync.getCurrentAgentId()}`);

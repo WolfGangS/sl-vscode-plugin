@@ -15428,10 +15428,7 @@
         ],
         "returnType": {
           "kind": "union",
-          "types": [
-            "quaternion",
-            "nil"
-          ]
+          "types": ["quaternion", "nil"]
         }
       },
       {
@@ -15445,10 +15442,7 @@
         ],
         "returnType": {
           "kind": "union",
-          "types": [
-            "vector",
-            "nil"
-          ]
+          "types": ["vector", "nil"]
         }
       },
       {
@@ -15823,6 +15817,62 @@
               }
             ],
             "returnType": "string"
+          },
+          {
+            "comment": "decode json string to lua value preserving types",
+            "name": "sldecode",
+            "parameters": [
+              {
+                "name": "json",
+                "type": "string"
+              }
+            ],
+            "returnType": {
+              "kind": "union",
+              "types": [
+                "string",
+                "number",
+                "vector",
+                "uuid",
+                "quaternion",
+                "boolean",
+                {
+                  "elementType": "",
+                  "kind": "array"
+                },
+                "nil"
+              ]
+            }
+          },
+          {
+            "comment": "encode lua value as json preserving types. use tight to encode more compactly",
+            "name": "slencode",
+            "parameters": [
+              {
+                "name": "value",
+                "type": {
+                  "kind": "union",
+                  "types": [
+                    "string",
+                    "number",
+                    "vector",
+                    "uuid",
+                    "quaternion",
+                    "boolean",
+                    {
+                      "elementType": "",
+                      "kind": "array"
+                    },
+                    "nil"
+                  ]
+                }
+              },
+              {
+                "name": "tight",
+                "type": "boolean"
+              }
+            ],
+            "returnType": "string"
           }
         ],
         "name": "lljson",
@@ -15916,10 +15966,7 @@
                 "name": "value",
                 "type": {
                   "kind": "union",
-                  "types": [
-                    "string",
-                    "buffer"
-                  ]
+                  "types": ["string", "buffer"]
                 }
               }
             ],
@@ -16125,20 +16172,14 @@
       {
         "definition": {
           "kind": "union",
-          "types": [
-            "boolean",
-            "number"
-          ]
+          "types": ["boolean", "number"]
         },
         "name": "numeric"
       },
       {
         "definition": {
           "kind": "union",
-          "types": [
-            "string",
-            "uuid"
-          ]
+          "types": ["string", "uuid"]
         },
         "name": "uuid_like"
       },
@@ -16183,10 +16224,7 @@
       {
         "definition": {
           "kind": "union",
-          "types": [
-            "DetectedEventName",
-            "NonDetectedEventName"
-          ]
+          "types": ["DetectedEventName", "NonDetectedEventName"]
         },
         "name": "EventName"
       },

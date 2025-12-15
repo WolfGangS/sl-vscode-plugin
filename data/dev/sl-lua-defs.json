@@ -5,10 +5,7 @@
       "name": "numeric",
       "definition": {
         "kind": "union",
-        "types": [
-          "boolean",
-          "number"
-        ]
+        "types": ["boolean", "number"]
       }
     },
     {
@@ -39,24 +36,21 @@
       "name": "DetectedEventName",
       "definition": {
         "kind": "literal-union",
-        "values": [ ]
+        "values": []
       }
     },
     {
       "name": "NonDetectedEventName",
       "definition": {
         "kind": "literal-union",
-        "values": [ ]
+        "values": []
       }
     },
     {
       "name": "EventName",
       "definition": {
         "kind": "union",
-        "types": [
-          "DetectedEventName",
-          "NonDetectedEventName"
-        ]
+        "types": ["DetectedEventName", "NonDetectedEventName"]
       }
     },
     {
@@ -1006,7 +1000,7 @@
           "type": "boolean"
         }
       ],
-      "methods": [ ]
+      "methods": []
     }
   ],
   "globalVariables": [
@@ -1058,10 +1052,7 @@
       ],
       "returnType": {
         "kind": "union",
-        "types": [
-          "quaternion",
-          "nil"
-        ]
+        "types": ["quaternion", "nil"]
       },
       "comment": "Creates a quaternion from a string argument in format `<1,1,1,1>`  Invalid strings will return `nil`  #### Caveat  Due to an old error from lsl strings that match upto the closing `>` are interpreted as valid  So `<1,1,1,1` and `<1,1,1,1spoon` are both cast to `<1,1,1,1>`  When testing if a string is a quaternion or a vector, you should test with `toquaternion` first."
     },
@@ -1075,10 +1066,7 @@
       ],
       "returnType": {
         "kind": "union",
-        "types": [
-          "vector",
-          "nil"
-        ]
+        "types": ["vector", "nil"]
       },
       "comment": "Creates a vector from a string argument in format `<1,1,1>`  Invalid strings will return `nil`  #### Caveat  Due to an old error from lsl strings that match upto the closing `>` are interpreted as valid  So `<1,1,1`, `<1,1,1,1` and `<1,1,1spoon` are all cast to `<1,1,1>`  When testing if a string is a quaternion or a vector, you should test with `toquaternion` first."
     },
@@ -1409,6 +1397,62 @@
           ],
           "returnType": "string",
           "comment": "encode lua value as json"
+        },
+        {
+          "comment": "decode json string to lua value preserving types",
+          "name": "sldecode",
+          "parameters": [
+            {
+              "name": "json",
+              "type": "string"
+            }
+          ],
+          "returnType": {
+            "kind": "union",
+            "types": [
+              "string",
+              "number",
+              "vector",
+              "uuid",
+              "quaternion",
+              "boolean",
+              {
+                "elementType": "",
+                "kind": "array"
+              },
+              "nil"
+            ]
+          }
+        },
+        {
+          "comment": "encode lua value as json preserving types. use tight to encode more compactly",
+          "name": "slencode",
+          "parameters": [
+            {
+              "name": "value",
+              "type": {
+                "kind": "union",
+                "types": [
+                  "string",
+                  "number",
+                  "vector",
+                  "uuid",
+                  "quaternion",
+                  "boolean",
+                  {
+                    "elementType": "",
+                    "kind": "array"
+                  },
+                  "nil"
+                ]
+              }
+            },
+            {
+              "name": "tight",
+              "type": "boolean"
+            }
+          ],
+          "returnType": "string"
         }
       ]
     },
@@ -1463,10 +1507,7 @@
               "name": "value",
               "type": {
                 "kind": "union",
-                "types": [
-                  "string",
-                  "buffer"
-                ]
+                "types": ["string", "buffer"]
               }
             }
           ],
