@@ -218,6 +218,7 @@ export class SynchService implements vscode.Disposable {
                 parsed.scriptId,
                 viewerDocument,
             );
+            await sync.initialize();
             this.activeSyncs.set(masterPath, sync);
         }
 
