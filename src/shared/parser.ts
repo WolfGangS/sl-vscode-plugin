@@ -419,7 +419,7 @@ export class Parser {
             const current = parser.current();
             if (current.isString()) {
                 const fileToken = parser.current();
-                console.error("INCLUDE",token,fileToken);
+                // console.error("INCLUDE",token,fileToken);
                 filename = parser.extractStringValue(fileToken.value);
             }
             else if(current.type == TokenType.OPERATOR && current.value == "<") {

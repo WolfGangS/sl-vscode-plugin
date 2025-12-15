@@ -369,6 +369,59 @@ suite("Lexing Preprocessor Test Suite", () => {
             assert.strictEqual(luauStrings.length, luauSourceStrings.length);
         });
 
+        test("Should support slua string interp", ()=> {
+            const parts = [
+                "local",
+                " ",
+                "a",
+                " ",
+                "=",
+                " ",
+                "`string {",
+                "b",
+                "}`"
+            ];
+            const source = parts.join('');
+            const luauLexer = new Lexer(source, "luau");
+            const luauTokens = luauLexer.tokenize();
+            assert.strictEqual(luauTokens.length, 10);
+            for(const i in parts) {
+                assert.strictEqual(luauTokens[i].value, parts[i]);
+            }
+        });
+
+
+
+        test("Should support nested slua string interp", ()=> {
+            const parts = [
+                "local",
+                " ",
+                "a",
+                " ",
+                "=",
+                " ",
+                "`string {",
+                "b",
+                " ",
+                "..",
+                " ",
+                "`nested{",
+                " ",
+                "`string`",
+                " ",
+                "}`",
+                " ",
+                "}`"
+            ];
+            const source = parts.join('');
+            const luauLexer = new Lexer(source, "luau");
+            const luauTokens = luauLexer.tokenize();
+            assert.strictEqual(luauTokens.length, parts.length + 1);
+            for(const i in parts) {
+                assert.strictEqual(luauTokens[i].value, parts[i]);
+            }
+        });
+
         const tokenizeAndGetStrings = (strings:string[],lang:ScriptLanguage) : string[] => {
             const lexer = new Lexer(strings.join(" "),lang);
             const tokens = lexer.tokenize().filter(t => t.type == TokenType.STRING_LITERAL);

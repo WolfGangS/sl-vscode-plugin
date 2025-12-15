@@ -121,6 +121,10 @@ export class SynchService implements vscode.Disposable {
                 this.onChangeActiveTextEditor(editor),
         );
 
+        ConfigService.getInstance().on(ConfigKey.PreprocessorConstantsInSLua,() => {
+            this.initializeSyntax();
+        });
+
         // TODO: Figure out why restart isn't working on the luau-lsp server
         // TODO: Bug when prepping language syntax on download
         // const syntaxInit = this.initializeSyntax();
