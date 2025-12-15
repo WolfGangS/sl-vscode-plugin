@@ -27,11 +27,13 @@ import {
     showWarningMessage,
     closeEditor,
     logInfo,
+    VSCodeHost,
 } from "./utils";
 import { maybe } from "./shared/sharedutils"; // TODO: migrate needed utilities from sharedutils if required
 import { ScriptLanguage, LanguageService } from "./shared/languageservice";
 import { ScriptSync } from "./scriptsync";
 import { LANGUAGE_CONFIGS } from "./shared/lexer";
+import { HostInterface } from "./interfaces/hostinterface";
 
 type ParsedTempFile = { scriptName: string; scriptId: string; extension: string, language: ScriptLanguage};
 
@@ -45,6 +47,8 @@ export class SynchService implements vscode.Disposable {
     private handshakePromise?: Promise<{ success: boolean; message: string }>;
     private lastActiveChange: number = 0;
     private activeSync: ScriptSync | undefined;
+    private host: HostInterface;
+    private initialGenerationDone: boolean = false;
 
     public viewerName?: string;
     public viewerVersion?: string;
@@ -58,6 +62,7 @@ export class SynchService implements vscode.Disposable {
 
     private constructor(context: vscode.ExtensionContext) {
         this.context = context;
+        this.host = new VSCodeHost();
     }
 
     public static getInstance(context?: vscode.ExtensionContext): SynchService {
@@ -115,8 +120,6 @@ export class SynchService implements vscode.Disposable {
             (editor: vscode.TextEditor | undefined) =>
                 this.onChangeActiveTextEditor(editor),
         );
-
-        this.initializeSyntax();
 
         // TODO: Figure out why restart isn't working on the luau-lsp server
         // TODO: Bug when prepping language syntax on download
@@ -217,6 +220,7 @@ export class SynchService implements vscode.Disposable {
                 config,
                 parsed.scriptId,
                 viewerDocument,
+                this.host,
             );
             await sync.initialize();
             this.activeSyncs.set(masterPath, sync);
@@ -663,7 +667,15 @@ export class SynchService implements vscode.Disposable {
     //#region Event handlers
     private async onOpenTextDocument(document: vscode.TextDocument): Promise<void> {
         this.lastActiveChange = 0;
+        this.initialDefinitionGeneration(document);
         await this.setupSync(document);
+    }
+
+    private async initialDefinitionGeneration(document: vscode.TextDocument) : Promise<void> {
+        if(this.initialGenerationDone) return;
+        if(!document.uri.fsPath.endsWith(".luau")) return;
+        this.initialGenerationDone = true;
+        this.initializeSyntax();
     }
 
     private onCloseTextDocument(document: vscode.TextDocument): void {
