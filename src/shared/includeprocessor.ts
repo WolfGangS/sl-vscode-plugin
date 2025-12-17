@@ -129,6 +129,7 @@ export class IncludeProcessor {
         let aliased = false;
 
         if(isRequire) {
+            filename = this.normalizeRequirePath(filename);
             if(!filename.startsWith("@")) {
                 // Regular require, relative lookup
                 includePaths = ["."];
@@ -324,6 +325,15 @@ export class IncludeProcessor {
         };
     }
 
+    private normalizeRequirePath(filename: string): string {
+        if(!filename.includes(path.sep)) {
+            filename = filename.split("/").join(path.sep);
+        }
+        const dbl = path.sep + path.sep;
+        while(filename.includes(dbl)) filename = filename.split(dbl).join(path.sep);
+        return filename;
+    }
+
     private async getLuauRequireAliasDir(requirePath:string, sourceFile:NormalizedPath, state:IncludeState) : Promise<string> {
         if(!requirePath.startsWith("@")) {
             throw "Alias must start with @";
@@ -353,9 +363,13 @@ export class IncludeProcessor {
     private async resolveLuaurcFileAliases(sourceFile:string, rcMap: LuauRCRequireMap) : Promise<RequireMap> {
         const map: RequireMap = {};
         let dir = normalizePath(sourceFile);
-        while(true) {
+        let last = dir;
+        let limit = 25;
+        while(limit-- > 0) {
             dir = normalizePath(path.dirname(dir));
-            if(dir.length < 3) break;
+            if(last == dir) {
+                break;
+            }
             const norm = normalizeJoinPath(dir,".luaurc");
             let dirMap = rcMap[norm] ?? null;
             if(!dirMap) {
