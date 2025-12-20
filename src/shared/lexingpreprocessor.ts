@@ -75,6 +75,7 @@ export interface DirectiveImplementations {
     endif?: (parser: any) => void | Promise<void>;
     include?: (parser: any) => void | Promise<void>;
     require?: (parser: any) => void | Promise<void>;
+    switch?: (parser: any) => void | Promise<void>;
 }
 
 //#region Lexing Preprocessor Main Class

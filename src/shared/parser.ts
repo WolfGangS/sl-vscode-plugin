@@ -7,7 +7,7 @@
  */
 
 import * as path from 'path';
-import { Token, TokenType, getLanguageConfig } from './lexer';
+import { LanguageLexerConfig, Token, TokenType, getLanguageConfig } from './lexer';
 import { ScriptLanguage } from './languageservice';
 import { NormalizedPath, HostInterface } from '../interfaces/hostinterface';
 import { FullConfigInterface, ConfigKey } from '../interfaces/configinterface';
@@ -15,7 +15,7 @@ import type { DirectiveImplementations } from './lexingpreprocessor';
 import { MacroProcessor, MacroExpansionContext } from './macroprocessor';
 import { ConditionalProcessor } from './conditionalprocessor';
 import { IncludeProcessor, IncludeState } from './includeprocessor';
-import { DiagnosticCollector, PreprocessorDiagnostic, ErrorCodes } from './diagnostics';
+import { DiagnosticCollector, PreprocessorDiagnostic, ErrorCodes, DiagnosticError, DiagnosticSeverity } from './diagnostics';
 
 //#region Parser State
 
@@ -47,6 +47,8 @@ export interface ParserState {
     includeState: IncludeState;
     /** Require state (for SLua require() directives) - only present when require is supported */
     requireState?: RequireState;
+    /** Set of unique identifiers to use for naming things like switch/loop jumps */
+    uniqueidentifiers: Set<string>;
 }
 
 //#endregion
@@ -102,6 +104,17 @@ export interface MacroInfo {
     parameters?: string[];
 }
 
+class HaltParseErrror extends Error{}
+
+type CaseBlock = {
+    defaultCase: boolean;
+    condition: Token[];
+    body: Token[];
+    identifier: string;
+    commentsBefore: Token[];
+    commentsAfter: Token[];
+}
+
 //#endregion
 
 //#region Parser
@@ -129,6 +142,8 @@ export class Parser {
     private lineDirectiveEmittedForCurrentLine: boolean;
     private lastEmittedTokenType: TokenType | null;
 
+    private languageConfig: LanguageLexerConfig;
+
     // Line ending style (detected from source)
     private lineEnding: string;
 
@@ -152,6 +167,7 @@ export class Parser {
 
     // Flag wether external require is allowed, passed down when using .luarc
     private allowExternalRequires: boolean = false;
+    private indentationLevel: number = 0;
 
     constructor(
         tokens: Token[],
@@ -178,6 +194,7 @@ export class Parser {
         this.config = config;
         this.isTopLevelParser = isTopLevel;
         this.diagnostics = diagnostics || new DiagnosticCollector();
+        this.languageConfig = getLanguageConfig(language);
 
         // Default to file's directory as workspace root if not provided
         this.workspaceRoots = workspaceRoots || [path.dirname(sourceFile) as NormalizedPath];
@@ -192,6 +209,7 @@ export class Parser {
             conditionals: initialState?.conditionals || new ConditionalProcessor(language),
             includes: initialState?.includes || (host ? new IncludeProcessor(language, host) : undefined as any),
             includeState: initialState?.includeState || IncludeProcessor.createState(maxIncludeDepth, includePaths),
+            uniqueidentifiers: initialState?.uniqueidentifiers || new Set<string>(),
         };
 
         // Only initialize requireState for SLua (luau) files or if explicitly provided
@@ -233,6 +251,7 @@ export class Parser {
             endif: async (parser: Parser) => Parser.handleEndifDirective(parser),
             include: async (parser: Parser) => Parser.handleIncludeDirective(parser),
             require: async (parser: Parser) => Parser.handleRequireDirective(parser),
+            switch: async (parser: Parser) => Parser.handleSwitchDirective(parser),
         };
     }
 
@@ -264,6 +283,7 @@ export class Parser {
             conditionals: new ConditionalProcessor(language),
             includes: host ? new IncludeProcessor(language, host) : undefined as any,
             includeState: IncludeProcessor.createState(maxIncludeDepth, includePaths),
+            uniqueidentifiers: new Set<string>(),
         };
     }
 
@@ -287,18 +307,16 @@ export class Parser {
         while (!this.isAtEnd()) {
             const token = this.current();
 
-            if (token.isDirective()) {
-                const positionAdvanced = await this.handleDirective(token);
-                if (!positionAdvanced) {
-                    this.advance();
+            try {
+                await this.parseToken(token);
+            } catch(error) {
+                if(error instanceof HaltParseErrror) {
+                    // Stop processing on HaltParseErrror
+                } else if(error instanceof DiagnosticError) {
+                    this.diagnostics.add(error.diagnostic);
+                } else {
+                    throw error;
                 }
-            } else if (this.shouldEmitToken()) {
-                const positionAdvanced = this.emitToken(token);
-                if (!positionAdvanced) {
-                    this.advance();
-                }
-            } else {
-                this.advance();
             }
 
             // Stop processing immediately if we encounter any errors
@@ -348,6 +366,25 @@ export class Parser {
         };
     }
 
+    private async parseToken(token: Token): Promise<void> {
+        if (token.isDirective()) {
+            const positionAdvanced = await this.handleDirective(token);
+            if (!positionAdvanced) {
+                this.advance();
+            }
+        } else if (this.shouldEmitToken()) {
+            const positionAdvanced = this.emitToken(token);
+            if (!positionAdvanced) {
+                this.advance();
+            }
+        } else {
+            this.advance();
+        }
+        if(this.diagnostics.hasErrors()) {
+            throw new HaltParseErrror();
+        }
+    }
+
     //#region Directive Handling
 
     /**
@@ -384,7 +421,7 @@ export class Parser {
         }
 
         // Consume rest of directive line (but not for require, which is inline)
-        if (directiveName !== 'require') {
+        if (directiveName !== 'require' && directiveName !== 'switch') {
             this.consumeDirectiveLine();
             return false; // Let caller advance past the directive token
         } else {
@@ -709,6 +746,255 @@ export class Parser {
             parser.diagnostics?.add(result.diagnostic);
         }
     }
+    /**
+     * Handle switch directive (LSL)
+     */
+    private static handleSwitchDirective(parser: Parser): void {
+        const directiveToken = parser.current();
+        const indentation = parser.indentationLevel;
+        const indentationWhitespace = ' '.repeat(indentation);
+        parser.advance();
+        parser.skipWhitespace();
+        parser.consumeTokenOfType(TokenType.PAREN_OPEN, 'SWITCH directive');
+        const condition :Token[] = [];
+        let depth = 1;
+        while(!parser.isAtEnd()) {
+            const current = parser.current();
+            if(current.type === TokenType.PAREN_OPEN) {
+                depth++;
+            } else if(current.type === TokenType.PAREN_CLOSE) {
+                depth--;
+                if(depth < 1) {
+                    parser.advance();
+                    break;
+                }
+            }
+            condition.push(current);
+            parser.advance();
+        }
+        const commentsBefore = this.trimTrailingWhiteSpace(parser.consumeWhiteSpaceAndComments());
+
+        parser.consumeTokenOfType(TokenType.BRACE_OPEN, 'SWITCH directive');
+        parser.skipWhitespace();
+
+        let caseBlock = this.consumeCaseBlock(parser);
+        let cases = [];
+        while(caseBlock) {
+            cases.push(caseBlock);
+            caseBlock = this.consumeCaseBlock(parser);
+        }
+
+        if(cases.length < 1) {
+            throw new DiagnosticError({
+                severity: DiagnosticSeverity.ERROR,
+                message: `SWITCH directive requires at least one CASE block`,
+                line: directiveToken.line,
+                column: directiveToken.column,
+                length: directiveToken.value.length,
+                sourceFile: parser.sourceFile,
+            });
+        }
+
+        parser.consumeTokenOfType(TokenType.BRACE_CLOSE, 'SWITCH directive');
+
+        if(cases.filter(c=>c.defaultCase).length > 1) {
+            throw new DiagnosticError({
+                severity: DiagnosticSeverity.ERROR,
+                message: `SWITCH directive cannot have more than one DEFAULT case`,
+                line: directiveToken.line,
+                column: directiveToken.column,
+                length: directiveToken.value.length,
+                sourceFile: parser.sourceFile,
+            });
+        }
+        const defaultCase = cases.find(c=>c.defaultCase);
+        const outJump = parser.generateUniqueIdentifier(5,"s");
+        if(commentsBefore.length > 0) {
+            parser.emitTokens(commentsBefore);
+            parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+        }
+        let first = true;
+        for(const c of cases) {
+            if(c.defaultCase) continue;
+            if(!first)parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
+            first = false;
+            this.emitCaseIfStatent(parser,condition,c);
+        }
+        if(defaultCase) {
+            if(!first)parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
+            parser.emitToken(new Token(TokenType.IDENTIFIER, `jump`, 0,0,0));
+            parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
+            parser.emitToken(new Token(TokenType.IDENTIFIER, defaultCase.identifier, 0,0,0));
+            parser.emitToken(new Token(TokenType.PUNCTUATION, ";", 0,0,0));
+            parser.emitTokens(defaultCase.commentsBefore);
+            parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+        }
+        for(const c of cases) {
+            this.emitCaseBlock(parser,c,outJump,indentationWhitespace);
+        }
+        parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
+        parser.emitToken(new Token(TokenType.IDENTIFIER, `@${outJump}`, 0,0,0));
+        parser.emitToken(new Token(TokenType.PUNCTUATION, ";", 0,0,0));
+        // parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+    }
+
+    private static emitCaseBlock(parser: Parser, caseBlock: CaseBlock, outJump: string, indentationWhitespace: string): void {
+        parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
+        parser.emitToken(new Token(TokenType.IDENTIFIER, `@${caseBlock.identifier}`, 0,0,0));
+        parser.emitToken(new Token(TokenType.PUNCTUATION, ";", 0,0,0));
+        parser.emitTokens(caseBlock.commentsBefore);
+        parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+        if(caseBlock.body.filter(t=>!t.isWhitespaceOrNewline()).length < 1) return;
+        parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
+        parser.emitToken(new Token(TokenType.BRACE_OPEN, "{", 0,0,0));
+        parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+        // parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
+        let indentation = 0;
+        let lastNewLine = true;
+        for(const t of caseBlock.body) {
+            if(t.is(TokenType.IDENTIFIER,"break")) {
+                parser.emitToken(new Token(TokenType.IDENTIFIER, `jump`, 0,0,0));
+                parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
+                parser.emitToken(new Token(TokenType.IDENTIFIER, outJump, 0,0,0));
+                continue;
+            }
+            if(lastNewLine) {
+                if(!t.isType(TokenType.WHITESPACE)) {
+                    if(indentation == 0) {
+                        parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace + '    ', 0,0,0));
+                    }
+                    lastNewLine = false;
+                } else {
+                    t.value = t.value.substring(4);
+                }
+            }
+            parser.emitToken(t);
+            if(lastNewLine && t.type == TokenType.WHITESPACE) {
+                indentation += t.value.length;
+            }
+            if(t.isType(TokenType.NEWLINE)) {
+                indentation = 0;
+                lastNewLine = true;
+            }
+        }
+        // parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+        // parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
+        parser.emitToken(new Token(TokenType.BRACE_CLOSE, "}", 0,0,0));
+        parser.emitTokens(caseBlock.commentsAfter);
+        parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+    }
+
+    private static emitCaseIfStatent(parser: Parser,condition: Token[], caseBlock: CaseBlock): void {
+        parser.emitToken(new Token(TokenType.IDENTIFIER, `if`, 0,0,0));
+        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0,0,0));
+        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0,0,0));
+
+        parser.emitTokens(condition);
+
+        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0,0,0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
+        parser.emitToken(new Token(TokenType.OPERATOR, "==", 0,0,0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
+        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0,0,0));
+
+        parser.emitTokens(caseBlock.condition);
+
+        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0,0,0));
+        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0,0,0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
+        parser.emitToken(new Token(TokenType.IDENTIFIER, "jump", 0,0,0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
+        parser.emitToken(new Token(TokenType.IDENTIFIER, caseBlock.identifier, 0,0,0));
+        parser.emitToken(new Token(TokenType.PUNCTUATION, ";", 0,0,0));
+        parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+    }
+
+    private static consumeCaseBlock(parser: Parser): CaseBlock | null {
+        if(parser.isAtEnd()) return null;
+        parser.skipWhitespace();
+        const keyword = parser.consumeTokenIfType(TokenType.IDENTIFIER);
+        if(!keyword) {
+            return null;
+        }
+        if(keyword.value !== 'case' && keyword.value !== 'default') {
+            throw new DiagnosticError({
+                severity: DiagnosticSeverity.ERROR,
+                message: `Expected 'case' or 'default' keyword in SWITCH directive`,
+                line: keyword.line,
+                column: keyword.column,
+                length: keyword.value.length,
+                sourceFile: parser.sourceFile,
+            });
+        }
+        const defaultCase = keyword.value === 'default';
+        parser.skipWhitespace();
+        const condition :Token[] = [];
+        while(!parser.isAtEnd()) {
+            const current = parser.current();
+            if(current.type == TokenType.BRACE_OPEN) break;
+            if(current.is(TokenType.OPERATOR,":")) break;
+            condition.push(current);
+            parser.advance();
+        }
+        if(parser.isAtEnd()) {
+            throw new DiagnosticError({
+                severity: DiagnosticSeverity.ERROR,
+                message: `Unexpected end of file while parsing CASE block in SWITCH directive`,
+                line: keyword.line,
+                column: keyword.column,
+                length: keyword.value.length,
+                sourceFile: parser.sourceFile,
+            });
+        }
+
+        const commentsBefore = this.trimTrailingWhiteSpace(parser.consumeWhiteSpaceAndComments());
+        let current = parser.current();
+
+        if(current.is(TokenType.OPERATOR, ":")) {
+            parser.advance();
+            commentsBefore.push(...this.trimTrailingWhiteSpace(parser.consumeWhiteSpaceAndComments()));
+            current = parser.current();
+            if(current.is(TokenType.IDENTIFIER, "case") || current.is(TokenType.IDENTIFIER, "default")) {
+                return {
+                    identifier: parser.generateUniqueIdentifier(5,"c"),
+                    defaultCase,
+                    condition,
+                    body: [],
+                    commentsBefore,
+                    commentsAfter:[],
+                };
+            }
+        }
+        parser.consumeTokenOfType(TokenType.BRACE_OPEN, 'case condition');
+        parser.advance();
+
+        let depth = 1;
+        const originalOutput = parser.outputTokens;
+        parser.outputTokens = [];
+        while(!parser.isAtEnd() && depth > 0) {
+            const current = parser.current();
+            if(current.type === TokenType.BRACE_OPEN) {
+                depth++;
+            } else if(current.type === TokenType.BRACE_CLOSE) {
+                depth--;
+                if(depth === 0) {
+                    parser.advance();
+                    break;
+                }
+            }
+            parser.parseToken(current);
+        }
+        const body = parser.outputTokens;
+        parser.outputTokens = originalOutput;
+        return {
+            identifier: parser.generateUniqueIdentifier(5,"c"),
+            defaultCase,
+            condition,
+            body,
+            commentsBefore,
+            commentsAfter: this.trimTrailingWhiteSpace(parser.consumeWhiteSpaceAndComments()),
+        };
+    }
 
     /**
      * Handle #if directive (LSL)
@@ -808,6 +1094,12 @@ export class Parser {
 
     //#region Token Emission
 
+    private emitTokens(tokens: Token[]): void {
+        for (const token of tokens) {
+            this.emitToken(token);
+        }
+    }
+
     /**
      * Emit a token to output and track line mapping
      * @returns true if the position was advanced beyond the current token (e.g., for function-like macros)
@@ -824,6 +1116,7 @@ export class Parser {
             this.lastEmittedTokenType = TokenType.NEWLINE;
             this.currentOutputLine++;
             this.lineDirectiveEmittedForCurrentLine = false;  // Reset for next line
+            this.indentationLevel = 0; // Reset indentation level on new line
             return false;
         }
 
@@ -835,6 +1128,10 @@ export class Parser {
             token.type !== TokenType.BLOCK_COMMENT_START &&
             token.type !== TokenType.BLOCK_COMMENT_CONTENT &&
             token.type !== TokenType.BLOCK_COMMENT_END;
+        if(isLeadingWhitespace) {
+            // Track indentation level
+            this.indentationLevel += token.value.length;
+        }
 
         if ((isLeadingWhitespace || isMeaningfulToken) &&
             !this.lineDirectiveEmittedForCurrentLine) {
@@ -844,8 +1141,7 @@ export class Parser {
 
             // Insert @line directive if we skipped lines (gap > 1) or changed files
             if ((lineSkip > 1 || fileChanged) && this.lastSourceLine > 0) {
-                const languageConfig = getLanguageConfig(this.language);
-                const lineDirectiveText = `${languageConfig.lineCommentPrefix} @line ${token.line} "${this.formatPathForLineDirective(this.sourceFile)}"`;
+                const lineDirectiveText = `${this.languageConfig.lineCommentPrefix} @line ${token.line} "${this.formatPathForLineDirective(this.sourceFile)}"`;
                 const lineDirective = new Token(
                     TokenType.LINE_COMMENT,
                     lineDirectiveText,
@@ -1005,6 +1301,91 @@ export class Parser {
     private skipWhitespace(): void {
         while (!this.isAtEnd() && this.current().isWhitespaceOrNewline()) {
             this.advance();
+        }
+    }
+
+    private static trimTrailingWhiteSpace(tokens: Token[]): Token[] {
+        const out = [];
+        let white = [];
+        for(const token of tokens) {
+            if(token.isWhitespaceOrNewline()) {
+                white.push(token);
+            } else {
+                out.push(...white);
+                white = [];
+                out.push(token);
+            }
+        }
+        return out;
+    }
+
+    private consumeWhiteSpaceAndComments(): Token[] {
+        const comments: Token[] = [];
+        while(!this.isAtEnd()) {
+            const current = this.current();
+            if(current.isComment() || current.isWhitespaceOrNewline()) {
+                comments.push(current);
+                this.advance();
+                continue;
+            }
+            break;
+        }
+        return comments;
+    }
+
+    private generateUniqueIdentifier(len: number = 6, prefix: string = "u"): string {
+        let identifier: string = "";
+        while(identifier.length < 1 || this.state.uniqueidentifiers.has(identifier)) {
+            identifier = prefix + ([...Array(len)].map(() => Math.floor(Math.random() * 16).toString(16)).join(''));
+        }
+        this.state.uniqueidentifiers.add(identifier);
+        return identifier;
+    }
+
+    private checkTokenOfType(type: TokenType): boolean {
+        if (this.isAtEnd()) {
+            return false;
+        }
+        return this.current().type === type;
+    }
+
+    private consumeTokenIfType(type: TokenType): Token | null {
+        if (this.isAtEnd()) {
+            return null;
+        }
+        const token = this.current();
+        if (token.type === type) {
+            this.advance();
+            return token;
+        }
+        return null;
+    }
+
+    private consumeTokenOfType(type: TokenType, after?: string): Token {
+        if (this.isAtEnd()) {
+            const token = this.tokens[this.tokens.length - 1];
+            throw new DiagnosticError({
+                severity: DiagnosticSeverity.ERROR,
+                message: `Expected token of type ${type}${after ? ` after ${after}` : ""}, but reached end of input`,
+                line: token.line,
+                column: token.column,
+                length: token.value.length,
+                sourceFile: this.sourceFile,
+            });
+        }
+        const token = this.current();
+        if (token.type === type) {
+            this.advance();
+            return token;
+        } else {
+            throw new DiagnosticError({
+                severity: DiagnosticSeverity.ERROR,
+                message: `Expected token of type ${type}${after ? ` after ${after}` : ""}, got ${token.type}`,
+                line: token.line,
+                column: token.column,
+                length: token.value.length,
+                sourceFile: this.sourceFile,
+            });
         }
     }
 
