@@ -751,9 +751,17 @@ export class Parser {
      */
     private static handleSwitchDirective(parser: Parser): void {
         const directiveToken = parser.current();
+        parser.advance();
+
+        const enabled = !!(parser.config?.getConfig<boolean>(ConfigKey.PreprocessorLSLSwitchStatements, false));
+
+        if(!enabled) {
+            parser.emitToken(directiveToken);
+            return;
+        }
+
         const indentation = parser.indentationLevel;
         const indentationWhitespace = ' '.repeat(indentation);
-        parser.advance();
         parser.skipWhitespace();
         parser.consumeTokenOfType(TokenType.PAREN_OPEN, 'SWITCH directive');
         const condition :Token[] = [];
@@ -820,15 +828,15 @@ export class Parser {
             first = false;
             this.emitCaseIfStatent(parser,condition,c);
         }
-        if(defaultCase) {
-            if(!first)parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
-            parser.emitToken(new Token(TokenType.IDENTIFIER, `jump`, 0,0,0));
-            parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
-            parser.emitToken(new Token(TokenType.IDENTIFIER, defaultCase.identifier, 0,0,0));
-            parser.emitToken(new Token(TokenType.PUNCTUATION, ";", 0,0,0));
-            parser.emitTokens(defaultCase.commentsBefore);
-            parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
-        }
+
+        if(!first)parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
+        parser.emitToken(new Token(TokenType.IDENTIFIER, `jump`, 0,0,0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
+        parser.emitToken(new Token(TokenType.IDENTIFIER, defaultCase ? defaultCase.identifier : outJump, 0,0,0));
+        parser.emitToken(new Token(TokenType.PUNCTUATION, ";", 0,0,0));
+        if(defaultCase) parser.emitTokens(defaultCase.commentsBefore);
+        parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+
         for(const c of cases) {
             this.emitCaseBlock(parser,c,outJump,indentationWhitespace);
         }
