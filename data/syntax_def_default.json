@@ -15574,60 +15574,6 @@
           }
         ],
         "returnType": "quaternion?"
-      },
-      {
-        "comment": "Constructor for uuid from string or buffer",
-        "name": "uuid",
-        "parameters": [
-          {
-            "name": "str",
-            "type": "string | buffer"
-          }
-        ],
-        "returnType": "uuid"
-      },
-      {
-        "comment": "Constructor for quaternion from x, y, z, s components",
-        "name": "quaternion",
-        "parameters": [
-          {
-            "name": "x",
-            "type": "number"
-          },
-          {
-            "name": "y",
-            "type": "number"
-          },
-          {
-            "name": "z",
-            "type": "number"
-          },
-          {
-            "name": "s",
-            "type": "number"
-          }
-        ],
-        "returnType": "quaternion"
-      },
-      {
-        "comment": "Constructor for vector from x, y, z components",
-        "name": "vector",
-        "parameters": [
-          {
-            "name": "x",
-            "type": "number"
-          },
-          {
-            "name": "y",
-            "type": "number"
-          },
-          {
-            "name": "z",
-            "optional": true,
-            "type": "number"
-          }
-        ],
-        "returnType": "vector"
       }
     ],
     "globalVariables": [
@@ -15830,348 +15776,344 @@
         "comment": "Global 'uuid' library table",
         "name": "uuid",
         "type": {
-          "kind": "table",
-          "properties": [
-            {
-              "comment": "Creates a new uuid from a string, buffer, or existing uuid. Returns nil if the string is not a valid UUID. Throws an error if the buffer is shorter than 16 bytes.",
-              "name": "create",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "value",
-                    "type": {
-                      "kind": "union",
-                      "types": [
-                        "string",
-                        "buffer",
-                        "uuid"
-                      ]
-                    }
-                  }
-                ],
-                "returnType": "uuid?"
+          "callSignature": {
+            "parameters": [
+              {
+                "name": "value",
+                "type": {
+                  "kind": "union",
+                  "types": [
+                    "string",
+                    "buffer",
+                    "uuid"
+                  ]
+                }
               }
-            },
-            {
-              "comment": "Allows calling uuid() as a constructor",
-              "name": "__call",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "self",
-                    "type": "any"
-                  },
-                  {
-                    "name": "value",
-                    "type": {
-                      "kind": "union",
-                      "types": [
-                        "string",
-                        "buffer",
-                        "uuid"
-                      ]
+            ],
+            "returnType": "uuid?"
+          },
+          "kind": "callable-table",
+          "tableType": {
+            "properties": [
+              {
+                "comment": "Creates a new uuid from a string, buffer, or existing uuid",
+                "name": "create",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "value",
+                      "type": {
+                        "kind": "union",
+                        "types": [
+                          "string",
+                          "buffer",
+                          "uuid"
+                        ]
+                      }
                     }
-                  }
-                ],
-                "returnType": "uuid?"
+                  ],
+                  "returnType": "uuid?"
+                }
               }
-            }
-          ]
+            ]
+          }
         }
       },
       {
         "comment": "Global 'vector' library table",
         "name": "vector",
         "type": {
-          "kind": "table",
-          "properties": [
-            {
-              "comment": "Creates a new vector with the given component values",
-              "name": "create",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "x",
-                    "type": "number"
-                  },
-                  {
-                    "name": "y",
-                    "type": "number"
-                  },
-                  {
-                    "name": "z",
-                    "optional": true,
-                    "type": "number"
-                  }
-                ],
-                "returnType": "vector"
+          "callSignature": {
+            "parameters": [
+              {
+                "name": "x",
+                "type": "number"
+              },
+              {
+                "name": "y",
+                "type": "number"
+              },
+              {
+                "name": "z",
+                "optional": true,
+                "type": "number"
               }
-            },
-            {
-              "comment": "Calculates the magnitude of a given vector",
-              "name": "magnitude",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "number"
+            ],
+            "returnType": "vector"
+          },
+          "kind": "callable-table",
+          "tableType": {
+            "properties": [
+              {
+                "comment": "Creates a new vector with the given component values",
+                "name": "create",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "x",
+                      "type": "number"
+                    },
+                    {
+                      "name": "y",
+                      "type": "number"
+                    },
+                    {
+                      "name": "z",
+                      "optional": true,
+                      "type": "number"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Calculates the magnitude of a given vector",
+                "name": "magnitude",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "number"
+                }
+              },
+              {
+                "comment": "Computes the normalized version (unit vector) of a given vector",
+                "name": "normalize",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Computes the cross product of two vectors",
+                "name": "cross",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "a",
+                      "type": "vector"
+                    },
+                    {
+                      "name": "b",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Computes the dot product of two vectors",
+                "name": "dot",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "a",
+                      "type": "vector"
+                    },
+                    {
+                      "name": "b",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "number"
+                }
+              },
+              {
+                "comment": "Computes the angle between two vectors in radians",
+                "name": "angle",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "a",
+                      "type": "vector"
+                    },
+                    {
+                      "name": "b",
+                      "type": "vector"
+                    },
+                    {
+                      "name": "axis",
+                      "optional": true,
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "number"
+                }
+              },
+              {
+                "comment": "Applies math.floor to every component of the input vector",
+                "name": "floor",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Applies math.ceil to every component of the input vector",
+                "name": "ceil",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Applies math.abs to every component of the input vector",
+                "name": "abs",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Applies math.sign to every component of the input vector",
+                "name": "sign",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Applies math.clamp to every component of the input vector",
+                "name": "clamp",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    },
+                    {
+                      "name": "min",
+                      "type": "vector"
+                    },
+                    {
+                      "name": "max",
+                      "type": "vector"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Applies math.max to the corresponding components of the input vectors",
+                "name": "max",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    },
+                    {
+                      "type": "vector",
+                      "variadic": true
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Applies math.min to the corresponding components of the input vectors",
+                "name": "min",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "v",
+                      "type": "vector"
+                    },
+                    {
+                      "type": "vector",
+                      "variadic": true
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "Linear interpolation between two vectors",
+                "name": "lerp",
+                "type": {
+                  "kind": "function",
+                  "parameters": [
+                    {
+                      "name": "a",
+                      "type": "vector"
+                    },
+                    {
+                      "name": "b",
+                      "type": "vector"
+                    },
+                    {
+                      "name": "t",
+                      "type": "number"
+                    }
+                  ],
+                  "returnType": "vector"
+                }
+              },
+              {
+                "comment": "A zero vector <0,0,0>",
+                "name": "zero",
+                "type": "vector"
+              },
+              {
+                "comment": "A one vector <1,1,1>",
+                "name": "one",
+                "type": "vector"
               }
-            },
-            {
-              "comment": "Computes the normalized version (unit vector) of a given vector",
-              "name": "normalize",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Computes the cross product of two vectors",
-              "name": "cross",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "a",
-                    "type": "vector"
-                  },
-                  {
-                    "name": "b",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Computes the dot product of two vectors",
-              "name": "dot",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "a",
-                    "type": "vector"
-                  },
-                  {
-                    "name": "b",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "number"
-              }
-            },
-            {
-              "comment": "Computes the angle between two vectors in radians. The axis, if specified, is used to determine the sign of the angle.",
-              "name": "angle",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "a",
-                    "type": "vector"
-                  },
-                  {
-                    "name": "b",
-                    "type": "vector"
-                  },
-                  {
-                    "name": "axis",
-                    "optional": true,
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "number"
-              }
-            },
-            {
-              "comment": "Applies math.floor to every component of the input vector",
-              "name": "floor",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Applies math.ceil to every component of the input vector",
-              "name": "ceil",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Applies math.abs to every component of the input vector",
-              "name": "abs",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Applies math.sign to every component of the input vector",
-              "name": "sign",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Applies math.clamp to every component of the input vector",
-              "name": "clamp",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  },
-                  {
-                    "name": "min",
-                    "type": "vector"
-                  },
-                  {
-                    "name": "max",
-                    "type": "vector"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Applies math.max to the corresponding components of the input vectors",
-              "name": "max",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  },
-                  {
-                    "type": "vector",
-                    "variadic": true
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Applies math.min to the corresponding components of the input vectors",
-              "name": "min",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "v",
-                    "type": "vector"
-                  },
-                  {
-                    "type": "vector",
-                    "variadic": true
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "Linear interpolation between two vectors",
-              "name": "lerp",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "a",
-                    "type": "vector"
-                  },
-                  {
-                    "name": "b",
-                    "type": "vector"
-                  },
-                  {
-                    "name": "t",
-                    "type": "number"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            },
-            {
-              "comment": "A zero vector <0,0,0>",
-              "name": "zero",
-              "type": "vector"
-            },
-            {
-              "comment": "A one vector <1,1,1>",
-              "name": "one",
-              "type": "vector"
-            },
-            {
-              "comment": "Constructor call: vector(x, y, z)",
-              "name": "__call",
-              "type": {
-                "kind": "function",
-                "parameters": [
-                  {
-                    "name": "self",
-                    "type": "any"
-                  },
-                  {
-                    "name": "x",
-                    "type": "number"
-                  },
-                  {
-                    "name": "y",
-                    "type": "number"
-                  },
-                  {
-                    "name": "z",
-                    "optional": true,
-                    "type": "number"
-                  }
-                ],
-                "returnType": "vector"
-              }
-            }
-          ]
+            ]
+          }
         }
+      },
+      {
+        "comment": "Second Life event management and registration",
+        "name": "LLEvents",
+        "type": "LLEvents"
+      },
+      {
+        "comment": "Second Life timer management and scheduling",
+        "name": "LLTimers",
+        "type": "LLTimers"
       },
       {
         "comment": "loadstring is removed in SLua",
@@ -17148,7 +17090,7 @@
           {
             "comment": "A constant to pass for null to json encode",
             "name": "null",
-            "type": "lightuserdata"
+            "type": "any"
           },
           {
             "comment": "Metatable for declaring table as an empty array for json encode",
@@ -17163,7 +17105,7 @@
           {
             "comment": "A constant to pass for an empty array to json encode",
             "name": "empty_array",
-            "type": "lightuserdata"
+            "type": "any"
           },
           {
             "comment": "Name of the lljson library",
@@ -18049,7 +17991,7 @@
             "parameters": [
               {
                 "name": "t",
-                "type": "table"
+                "type": "{[any]: any}"
               },
               {
                 "name": "f",
@@ -18264,7 +18206,7 @@
             "parameters": [
               {
                 "name": "t",
-                "type": "table"
+                "type": "{[any]: any}"
               }
             ],
             "returnType": "()"
@@ -18275,10 +18217,10 @@
             "parameters": [
               {
                 "name": "t",
-                "type": "table"
+                "type": "{[any]: any}"
               }
             ],
-            "returnType": "table"
+            "returnType": "{[any]: any}"
           },
           {
             "comment": "Returns true if a table is frozen",
@@ -18286,7 +18228,7 @@
             "parameters": [
               {
                 "name": "t",
-                "type": "table"
+                "type": "{[any]: any}"
               }
             ],
             "returnType": "boolean"
@@ -18297,10 +18239,10 @@
             "parameters": [
               {
                 "name": "t",
-                "type": "table"
+                "type": "{[any]: any}"
               }
             ],
-            "returnType": "table"
+            "returnType": "{[any]: any}"
           }
         ],
         "name": "table"
