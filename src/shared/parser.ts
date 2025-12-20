@@ -1748,7 +1748,8 @@ export class Parser {
             [TokenType.PAREN_OPEN,"("],
             [TokenType.PAREN_CLOSE,")"],
             [TokenType.NEWLINE,"\n"],
-            [TokenType.LINE_COMMENT, `${languageConfig.lineCommentPrefix}@line 1 "${this.sourceFile}"`],
+            // [TokenType.LINE_COMMENT, `${languageConfig.lineCommentPrefix}@line 1 "${this.sourceFile}"`],
+            [TokenType.LINE_COMMENT, `${languageConfig.lineCommentPrefix}@line 1 "${this.formatPathForLineDirective(this.sourceFile)}"`],
             [TokenType.NEWLINE,"\n"],
         ];
 

@@ -442,6 +442,8 @@ export class VSCodeHost implements HostInterface {
             return vscode.Uri.file(fileName).toString();
         }
 
+        const relatives = [];
+
         // Find which workspace folder contains this file
         for (const folder of workspaceFolders) {
             const folderPath = folder.uri.fsPath;
@@ -452,8 +454,19 @@ export class VSCodeHost implements HostInterface {
                 const normalizedRelative = relativePath.split(path.sep).join('/');
                 // Include folder name in URI to identify which workspace root
                 return `workspace:///${folder.name}/${normalizedRelative}`;
+            } else {
+                const relativePath = path.relative(folderPath, fileName);
+                if(relativePath.startsWith('..')) {
+                    relatives.push(`workspace:///${folder.name}/${relativePath}`);
+                }
             }
         }
+        if(relatives.length > 0) {
+            relatives.sort((a,b) => a.length - b.length);
+            return relatives[0];
+        }
+
+        // return `workspace:///` + vscode.workspace.asRelativePath(fileName);
 
         // File is outside all workspace folders - return absolute file:// URL
         return vscode.Uri.file(fileName).toString();
