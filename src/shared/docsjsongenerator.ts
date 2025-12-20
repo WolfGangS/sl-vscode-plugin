@@ -138,7 +138,7 @@ export class DocsJsonGenerator {
 
         // Generate wiki link for ll.* functions
         if (moduleName === 'll') {
-            entry.learn_more_link = `https://create.secondlife.com/script/slua-reference/functions/ll${func.name}/`
+            entry.learn_more_link = `https://create.secondlife.com/script/slua-reference/functions/ll${func.name.toLowerCase()}/`
         }
 
         docs[key] = entry;
@@ -191,7 +191,7 @@ export class DocsJsonGenerator {
         // Handle different naming conventions
         if (name.startsWith('ll.')) {
             // ll.FunctionName -> https://create.secondlife.com/script/slua-reference/functions/llFunctionName/
-            return `https://create.secondlife.com/script/slua-reference/functions/ll${name.slice(3)}/`;
+            return `https://create.secondlife.com/script/slua-reference/functions/ll${name.slice(3).toLowerCase()}/`;
         }
 
         if (name === 'uuid' || name === 'vector' || name === 'quaternion') {
