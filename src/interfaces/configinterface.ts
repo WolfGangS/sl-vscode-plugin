@@ -33,7 +33,6 @@ export enum ConfigKey {
   CompareHashBeforeSync = 'sync.compareHashBeforeSync',
 
   FileMetaInfoInOutput ='sync.includeFileMetaInOutput',
-  FileMetaInfoUseForMatching ='sync.useFileMetaForMatching',
   FileMetaInfoIncludeCreator ='sync.includeCreatorInFileMeta',
 }
 
