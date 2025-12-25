@@ -1289,14 +1289,23 @@ export class Parser {
 
     //#region Token Stream Navigation
 
+    private peek(offset: number): Token|null {
+        offset += this.position;
+        if(offset >= this.tokens.length) {
+            return null;
+        }
+        return this.tokens[offset];
+    }
+
     private current(): Token {
         return this.tokens[this.position];
     }
 
-    private advance(): Token {
+    private advance(steps:number = 1): Token {
         const token = this.current();
-        if (this.position < this.tokens.length - 1) {
-            this.position++;
+        steps += this.position;
+        if (steps < this.tokens.length) {
+            this.position = steps;
         }
         return token;
     }
@@ -1423,8 +1432,9 @@ export class Parser {
         this.skipWhitespace();
 
         while (!this.isAtEnd() && this.current().type !== TokenType.PAREN_CLOSE) {
-            if (this.current().isIdentifier()) {
-                parameters.push(this.current().value);
+            const current = this.current();
+            if (current.isIdentifier()) {
+                parameters.push(current.value);
                 this.advance();
                 this.skipWhitespace();
 
@@ -1433,6 +1443,17 @@ export class Parser {
                     this.skipWhitespace();
                 }
             } else {
+                // Detect ... for __VA_ARGS__
+                if(current.value == ".") {
+                    const peek1 = this.peek(1);
+                    const peek2 = this.peek(2);
+                    if(peek1 && peek2) {
+                        if(peek1.value == "." && peek2.value == ".") {
+                            this.advance(2);
+                            parameters.push("...");
+                        }
+                    }
+                }
                 this.advance(); // skip unexpected token
             }
         }
