@@ -222,7 +222,7 @@ When `true` (default), configuration files are stored in your workspace's `.vsco
 5. **Edit in VS Code** with full preprocessing support
 6. **Save** to sync changes back to the viewer
 
-### Linux notes
+### Linux-specific instructions
 If using the flatpak version of vscode:
 1. The External Script Editor command is:
    ```
@@ -480,4 +480,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Macro processing and conditional compilation
 - Include guards and circular protection
 - Real-time script synchronization
+
 
