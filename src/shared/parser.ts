@@ -150,7 +150,7 @@ export class Parser {
     // Diagnostic collector
     private diagnostics: DiagnosticCollector;
 
-    // Flag wether external require is allowed, passed down when using .luarc
+    // Flag whether external require is allowed, passed down when using .luarc
     private allowExternalRequires: boolean = false;
 
     constructor(
