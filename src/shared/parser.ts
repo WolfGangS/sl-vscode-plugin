@@ -1444,6 +1444,33 @@ export class Parser {
         return parameters;
     }
 
+    private consumeEncapsulatedSequence(enter: TokenType, exit: TokenType) : Token[] {
+        const first = this.consumeTokenOfType(enter);
+        const tokens = [first];
+        let depth = 1;
+        while(!this.isAtEnd()) {
+            const current = this.current();
+            if(current.type == enter) depth++;
+            else if(current.type == exit) depth--;
+            tokens.push(current);
+            this.advance();
+            if(depth == 0) {
+                return tokens;
+            }
+        }
+        this.diagnostics.addError(
+            `Unclosed sequence wrapped with ${enter} ${exit}`,
+            {
+                line: first.line,
+                column: first.column,
+                length: first.value.length,
+                sourceFile: this.sourceFile,
+            },
+            ErrorCodes.INVALID_MACRO_INVOCATION
+        );
+        return [];
+    }
+
     /**
      * Parse argument list for macro invocation: (expr1, expr2, expr3)
      */
@@ -1452,7 +1479,7 @@ export class Parser {
         let currentArg: Token[] = [];
         let parenDepth = 0;
 
-        this.advance(); // consume (
+        this.consumeTokenOfType(TokenType.PAREN_OPEN, "function macro call");
 
         while (!this.isAtEnd()) {
             const token = this.current();
@@ -1475,6 +1502,10 @@ export class Parser {
                 }
                 parenDepth--;
                 currentArg.push(token);
+            } else if(token.type === TokenType.BRACKET_OPEN) {
+                // Consume list
+                currentArg.push(...this.consumeEncapsulatedSequence(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE));
+                continue; // Continue as list consume handles advance.
             } else if (token.value === ',' && parenDepth === 0) {
                 // Argument separator
                 // Trim whitespace from argument
