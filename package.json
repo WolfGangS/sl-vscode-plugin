@@ -138,7 +138,7 @@
             "title": "Use constants in SLua",
             "type": "boolean",
             "default": false,
-            "description": "Enable predefined LSL stlye preproc macro constants in slua"
+            "description": "Enable predefined LSL style preproc macro constants in slua"
           }
         }
       },
