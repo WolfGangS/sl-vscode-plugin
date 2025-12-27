@@ -674,12 +674,17 @@ export class SynchService implements vscode.Disposable {
             if(pick === "Don't show again") {
                 ConfigService.getInstance().setConfig<boolean>(ConfigKey.AskToOverwriteMaster, false);
             } else if(pick === "Overwrite master") {
-                var firstLine = masterEditor.document.lineAt(0);
-                var lastLine = masterEditor.document.lineAt(masterEditor.document.lineCount - 1);
-                var textRange = new vscode.Range(firstLine.range.start, lastLine.range.end);
+                const firstLine = masterEditor.document.lineAt(0);
+                const lastLine = masterEditor.document.lineAt(masterEditor.document.lineCount - 1);
+                const textRange = new vscode.Range(firstLine.range.start, lastLine.range.end);
                 masterEditor.edit(edit => edit.replace(textRange, viewerDocument.getText()));
             } else if(pick === "Compare") {
-                console.log("compare")
+                const viewer = viewerDocument.uri;
+                const master = masterEditor.document.uri;
+                const viewerName = this.parseTempFile(viewer.fsPath)?.scriptName;
+                const masterName = path.basename(masterEditor.document.fileName);
+                const title = `${viewerName} (Viewer) ↔ ${masterName} (Master)`;
+                await vscode.commands.executeCommand("vscode.diff", viewer, master, title); //, { preview: false });
             }
         })
         //*/
