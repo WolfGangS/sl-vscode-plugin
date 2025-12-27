@@ -81,6 +81,11 @@
       {
         "title": "SL Scripting - Sync",
         "properties": {
+          "slVscodeEdit.sync.askToOverwriteMaster": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether the plugin should ask to overwrite the master file if it's different than the viewer file. You probably want to turn this off if you use the proprocessor or require()"
+          },
           "slVscodeEdit.sync.compareHashBeforeSync": {
             "type": "boolean",
             "default": false,

@@ -190,7 +190,9 @@ export class SynchService implements vscode.Disposable {
         const masterPath = masterUri.fsPath;
         // Open the master script file in the editor
         showInfoMessage(`Opening master script: ${path.basename(masterPath)}`);
-        let masterDoc = await SynchService.openMasterScript(masterUri);
+        let masterEditor = await SynchService.openMasterScript(masterUri);
+        let masterDoc = masterEditor.document
+        SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, viewerDocument)
 
         // Connection goes on in the background
         let viewerConnecting: Promise<boolean> = this.setupConnection();
@@ -656,10 +658,31 @@ export class SynchService implements vscode.Disposable {
 
     private static async openMasterScript(
         masterUri: vscode.Uri,
-    ): Promise<vscode.TextDocument> {
+    ): Promise<vscode.TextEditor> {
         const masterDoc = await vscode.workspace.openTextDocument(masterUri);
-        await vscode.window.showTextDocument(masterDoc, { preview: false });
-        return masterDoc;
+        return await vscode.window.showTextDocument(masterDoc, { preview: false });
+    }
+
+    private static checkAndUpdateMasterDocumentInBackground(masterEditor: vscode.TextEditor, viewerDocument: vscode.TextDocument): void {
+        if(!ConfigService.getInstance().getConfig<boolean>(ConfigKey.AskToOverwriteMaster, true)) return;
+        if(masterEditor.document.getText() == viewerDocument.getText()) return;
+        console.log(masterEditor)
+        vscode.window.showInformationMessage(`${masterEditor.document.fileName} differs from viewer script`,
+            "Ignore", "Overwrite master", "Compare", "Don't show again").then(async (pick) => {
+
+            console.log(pick)
+            if(pick === "Don't show again") {
+                ConfigService.getInstance().setConfig<boolean>(ConfigKey.AskToOverwriteMaster, false);
+            } else if(pick === "Overwrite master") {
+                var firstLine = masterEditor.document.lineAt(0);
+                var lastLine = masterEditor.document.lineAt(masterEditor.document.lineCount - 1);
+                var textRange = new vscode.Range(firstLine.range.start, lastLine.range.end);
+                masterEditor.edit(edit => edit.replace(textRange, viewerDocument.getText()));
+            } else if(pick === "Compare") {
+                console.log("compare")
+            }
+        })
+        //*/
     }
 
     public getWebSocket(): ViewerEditWSClient | undefined {
