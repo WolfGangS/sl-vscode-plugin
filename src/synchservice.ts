@@ -666,12 +666,12 @@ export class SynchService implements vscode.Disposable {
     private static checkAndUpdateMasterDocumentInBackground(masterEditor: vscode.TextEditor, viewerDocument: vscode.TextDocument): void {
         if(!ConfigService.getInstance().getConfig<boolean>(ConfigKey.AskToOverwriteMaster, true)) return;
         if(masterEditor.document.getText() == viewerDocument.getText()) return;
-        console.log(masterEditor)
-        vscode.window.showInformationMessage(`${masterEditor.document.fileName} differs from viewer script`,
-            "Ignore", "Overwrite master", "Compare", "Don't show again").then(async (pick) => {
+        const viewerFileName = SynchService.parseTempFile(viewerDocument.fileName)?.scriptName;
+        const masterFileName = path.basename(masterEditor.document.fileName);
+        vscode.window.showInformationMessage(`Viewer script "${viewerFileName}" differs from master script "${masterFileName}". What would you like to do?`,
+            "Ignore", "Overwrite master", "Compare", "Always ignore").then(async (pick) => {
 
-            console.log(pick)
-            if(pick === "Don't show again") {
+            if(pick === "Always ignore") {
                 ConfigService.getInstance().setConfig<boolean>(ConfigKey.AskToOverwriteMaster, false);
             } else if(pick === "Overwrite master") {
                 const firstLine = masterEditor.document.lineAt(0);
@@ -681,9 +681,7 @@ export class SynchService implements vscode.Disposable {
             } else if(pick === "Compare") {
                 const viewer = viewerDocument.uri;
                 const master = masterEditor.document.uri;
-                const viewerName = this.parseTempFile(viewer.fsPath)?.scriptName;
-                const masterName = path.basename(masterEditor.document.fileName);
-                const title = `${viewerName} (Viewer) ↔ ${masterName} (Master)`;
+                const title = `${viewerFileName} (Viewer) ↔ ${masterFileName} (Master)`;
                 await vscode.commands.executeCommand("vscode.diff", viewer, master, title); //, { preview: false });
             }
         })
