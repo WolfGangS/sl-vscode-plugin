@@ -29,7 +29,7 @@ export enum ConfigKey {
   PreprocessorMaxIncludeDepth = 'preprocessor.maxIncludeDepth',
   PreprocessorConstantsInSLua = 'preprocessor.constantsInSLua',
   LastSyntaxID = 'syntax.lastID',
-  AskToOverwriteMaster = 'sync.askToOverwriteMaster',
+  AskIfViewerScriptMismatchesMaster = 'sync.askIfViewerScriptMismatchesMaster',
   CompareHashBeforeSync = 'sync.compareHashBeforeSync',
 
   FileMetaInfoInOutput ='sync.includeFileMetaInOutput',

@@ -664,7 +664,7 @@ export class SynchService implements vscode.Disposable {
     }
 
     private static checkAndUpdateMasterDocumentInBackground(masterEditor: vscode.TextEditor, viewerDocument: vscode.TextDocument): void {
-        if(!ConfigService.getInstance().getConfig<boolean>(ConfigKey.AskToOverwriteMaster, true)) return;
+        if(!ConfigService.getInstance().getConfig<boolean>(ConfigKey.AskIfViewerScriptMismatchesMaster, true)) return;
         if(masterEditor.document.getText() == viewerDocument.getText()) return;
         const viewerFileName = SynchService.parseTempFile(viewerDocument.fileName)?.scriptName;
         const masterFileName = path.basename(masterEditor.document.fileName);
@@ -672,7 +672,7 @@ export class SynchService implements vscode.Disposable {
             "Ignore", "Overwrite master", "Compare", "Always ignore").then(async (pick) => {
 
             if(pick === "Always ignore") {
-                ConfigService.getInstance().setConfig<boolean>(ConfigKey.AskToOverwriteMaster, false);
+                ConfigService.getInstance().setConfig<boolean>(ConfigKey.AskIfViewerScriptMismatchesMaster, false);
             } else if(pick === "Overwrite master") {
                 const firstLine = masterEditor.document.lineAt(0);
                 const lastLine = masterEditor.document.lineAt(masterEditor.document.lineCount - 1);
