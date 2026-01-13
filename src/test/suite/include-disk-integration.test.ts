@@ -36,6 +36,9 @@ class TestConfig implements FullConfigInterface {
         if (key === ConfigKey.PreprocessorMaxIncludeDepth) {
             return (this.options.maxIncludeDepth ?? 5) as T;
         }
+        if(this.options.config && key in this.options.config) {
+            return this.options.config[key] as T;
+        }
         return undefined;
     }
     async setConfig<T>(key: ConfigKey, value: T, scope?: any): Promise<void> {}
@@ -190,6 +193,9 @@ suite('LSL Include Directive Tests - Disk-based Integration', () => {
             },
             includePaths: ['./include/', 'include/'],
             maxIncludeDepth: 10,
+            config: {
+                [ConfigKey.PreprocessorLSLSwitchStatements]: true
+            }
         };
     }
 
@@ -256,6 +262,65 @@ suite('LSL Include Directive Tests - Disk-based Integration', () => {
         assert.ok(result.success, 'Processing should succeed');
         assert.strictEqual(result.issues.length, 0, 'Should have no issues');
     });
+
+    test('test switch case', async () => {
+        const testFile = normalizePath(path.join(workspaceRoot, 'test_switch.lsl'));
+        const expectedFile = path.join(workspaceRoot, 'test_switch_expected.lsl');
+        const source = fs.readFileSync(testFile, 'utf-8');
+        const expected = fs.readFileSync(expectedFile, 'utf-8');
+        const preprocessor = new LexingPreprocessor(host, host.config);
+
+
+        const result = await preprocessor.process(source, testFile, 'lsl');
+
+        console.error("-------------------");
+        console.error(result.content);
+        console.error("-------------------");
+
+        // Compare with expected output
+        assert.strictEqual(result.content, expected, 'Output should match expected file');
+
+        // Verify no errors
+        assert.ok(result.success, 'Processing should succeed');
+        assert.strictEqual(result.issues.length, 0, 'Should have no issues');
+    });
+
+    test('test empty defined function macro handling', async () => {
+        const testFile = normalizePath(path.join(workspaceRoot, 'test_define_nix_function.lsl'));
+        const expectedFile = path.join(workspaceRoot, 'test_define_nix_function_expected.lsl');
+        const source = fs.readFileSync(testFile, 'utf-8');
+        const expected = fs.readFileSync(expectedFile, 'utf-8');
+        const preprocessor = new LexingPreprocessor(host, host.config);
+
+        const result = await preprocessor.process(source, testFile, 'lsl');
+
+        // Compare with expected output
+        assert.strictEqual(result.content, expected, 'Output should match expected file');
+
+        // Verify no errors
+        assert.ok(result.success, 'Processing should succeed');
+        assert.strictEqual(result.issues.length, 0, 'Should have no issues');
+    });
+
+    const variants = ["debug", "no_debug"];
+    for (const variant of variants) {
+        test('nested if and define directives should work correctly ' + variant, async () => {
+            const testFile = normalizePath(path.join(workspaceRoot, `test_nested_if_define_${variant}.lsl`));
+            const expectedFile = path.join(workspaceRoot, `test_nested_if_define_${variant}_expected.lsl`);
+            const source = fs.readFileSync(testFile, 'utf-8');
+            const expected = fs.readFileSync(expectedFile, 'utf-8');
+            const preprocessor = new LexingPreprocessor(host, host.config);
+
+            const result = await preprocessor.process(source, testFile, 'lsl');
+
+            // Compare with expected output
+            assert.strictEqual(result.content, expected, 'Output should match expected file');
+
+            // Verify no errors
+            assert.ok(result.success, 'Processing should succeed');
+            assert.strictEqual(result.issues.length, 0, 'Should have no issues');
+        });
+    }
 
     test('should generate correct @line directives at column 0', async () => {
         const testFile = normalizePath(path.join(workspaceRoot, 'test_include_chain.lsl'));

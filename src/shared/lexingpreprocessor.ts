@@ -36,6 +36,7 @@ export interface PreprocessorOptions {
     flags: OptionFlags;
     includePaths?: string[];
     maxIncludeDepth?: number; // Maximum nesting depth for #include and require() directives
+    config?: { [key in ConfigKey]?: any };
 }
 
 export interface PreprocessorError {

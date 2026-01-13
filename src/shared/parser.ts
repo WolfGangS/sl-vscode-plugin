@@ -49,6 +49,8 @@ export interface ParserState {
     requireState?: RequireState;
     /** Set of unique identifiers to use for naming things like switch/loop jumps */
     uniqueidentifiers: Set<string>;
+    /** Random number state, for deterministic random number generation */
+    random: RNG;
 }
 
 //#endregion
@@ -210,6 +212,7 @@ export class Parser {
             includes: initialState?.includes || (host ? new IncludeProcessor(language, host) : undefined as any),
             includeState: initialState?.includeState || IncludeProcessor.createState(maxIncludeDepth, includePaths),
             uniqueidentifiers: initialState?.uniqueidentifiers || new Set<string>(),
+            random: initialState?.random || new RNG(),
         };
 
         // Only initialize requireState for SLua (luau) files or if explicitly provided
@@ -284,6 +287,7 @@ export class Parser {
             includes: host ? new IncludeProcessor(language, host) : undefined as any,
             includeState: IncludeProcessor.createState(maxIncludeDepth, includePaths),
             uniqueidentifiers: new Set<string>(),
+            random: new RNG(),
         };
     }
 
@@ -1353,7 +1357,8 @@ export class Parser {
     private generateUniqueIdentifier(len: number = 6, prefix: string = "u"): string {
         let identifier: string = "";
         while(identifier.length < 1 || this.state.uniqueidentifiers.has(identifier)) {
-            identifier = prefix + ([...Array(len)].map(() => Math.floor(Math.random() * 16).toString(16)).join(''));
+            const rand = this.state.random.nextHex();
+            identifier = prefix + rand.substring(rand.length - len);
         }
         this.state.uniqueidentifiers.add(identifier);
         return identifier;
@@ -2217,5 +2222,27 @@ export class Parser {
 
     //#endregion
 }
+
+
+class RNG {
+    private state: number;
+    constructor(seed: number = 9863369152) {
+        this.state = seed;
+    }
+    public next(): number {
+        // Xorshift* algorithm
+        let x = this.state;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        this.state = x;
+        return x & 0x7FFFFFFF;
+    }
+
+    public nextHex(): string {
+        return this.next().toString(16).padStart(8, '0');
+    }
+}
+
 
 //#endregion
