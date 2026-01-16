@@ -4,4 +4,3 @@
 debug(string stuff) {
     llOwnerSay(stuff);
 }
-

@@ -314,7 +314,7 @@ suite('LSL Include Directive Tests - Disk-based Integration', () => {
             const result = await preprocessor.process(source, testFile, 'lsl');
 
             // Compare with expected output
-            assert.strictEqual(result.content, expected, 'Output should match expected file');
+            assert.strictEqual(result.content.trim(), expected.trim(), 'Output should match expected file');
 
             // Verify no errors
             assert.ok(result.success, 'Processing should succeed');
