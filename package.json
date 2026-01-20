@@ -89,12 +89,7 @@
           "slVscodeEdit.sync.includeFileMetaInOutput": {
             "type": "boolean",
             "default": false,
-            "description": "Wether the output script should include some meta information about the file"
-          },
-          "slVscodeEdit.sync.useFileMetaForMatching": {
-            "type": "boolean",
-            "default": false,
-            "description": "Wether the file matcher should use script meta info for matching file"
+            "description": "Wether the output script should include some meta information about the file, this info is also used to match file on next edit"
           },
           "slVscodeEdit.sync.includeCreatorInFileMeta": {
             "type": "boolean",
