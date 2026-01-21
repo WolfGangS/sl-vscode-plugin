@@ -477,6 +477,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Macro processing and conditional compilation
 - Include guards and circular protection
 - Real-time script synchronization
-
-
-
