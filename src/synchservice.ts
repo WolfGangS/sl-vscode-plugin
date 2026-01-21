@@ -610,7 +610,7 @@ export class SynchService implements vscode.Disposable {
         viewerFile: vscode.TextDocument
     ): Promise<vscode.Uri | null> {
         // Attempt to match by file meta info
-        if(ConfigService.getInstance().getConfig<boolean>(ConfigKey.FileMetaInfoUseForMatching, false)) {
+        if(ConfigService.getInstance().getConfig<boolean>(ConfigKey.FileMetaInfoInOutput, false)) {
             const cmt = LANGUAGE_CONFIGS[script.language].lineCommentPrefix;
             const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`,"i");
             const range = new vscode.Range(0,0,10,0);
