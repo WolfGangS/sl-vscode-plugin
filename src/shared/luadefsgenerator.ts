@@ -55,7 +55,7 @@ export class LuauDefsGenerator {
         // Split classes into those that depend on type aliases and those that don't
         const baseClasses: ClassDeclaration[] = [];
         const dependentClasses: ClassDeclaration[] = [];
-        
+
         if (defs.classes && defs.classes.length > 0) {
             for (const cls of defs.classes) {
                 if (this.classUsesTypeAliases(cls)) {
@@ -305,7 +305,7 @@ export class LuauDefsGenerator {
         }
 
         lines.push('}');
-        
+
         return `${callSig} & ${lines.join('\n')}`;
     }
 
