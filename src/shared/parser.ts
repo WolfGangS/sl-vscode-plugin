@@ -314,8 +314,8 @@ export class Parser {
             try {
                 await this.parseToken(token);
             } catch(error) {
-                if(error instanceof HaltParseErrror) {
-                    // Stop processing on HaltParseErrror
+                if(error instanceof HaltParseError) {
+                    // Stop processing on HaltParseError
                 } else if(error instanceof DiagnosticError) {
                     this.diagnostics.add(error.diagnostic);
                 } else {
@@ -385,7 +385,7 @@ export class Parser {
             this.advance();
         }
         if(this.diagnostics.hasErrors()) {
-            throw new HaltParseErrror();
+            throw new HaltParseError();
         }
     }
 
@@ -921,12 +921,6 @@ export class Parser {
         parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0, 0, 0));
     }
 
-    /**
-     * @deprecated Use emitCaseIfStatement instead. Kept for backward compatibility.
-     */
-    private static emitCaseIfStatent(parser: Parser, condition: Token[], caseBlock: CaseBlock): void {
-        Parser.emitCaseIfStatement(parser, condition, caseBlock);
-    }
     private static consumeCaseBlock(parser: Parser): CaseBlock | null {
         if(parser.isAtEnd()) return null;
         parser.skipWhitespace();
