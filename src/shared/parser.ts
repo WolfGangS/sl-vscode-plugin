@@ -106,7 +106,7 @@ export interface MacroInfo {
     parameters?: string[];
 }
 
-class HaltParseErrror extends Error{}
+class HaltParseError extends Error{}
 
 type CaseBlock = {
     defaultCase: boolean;
@@ -830,7 +830,7 @@ export class Parser {
             if(c.defaultCase) continue;
             if(!first)parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
             first = false;
-            this.emitCaseIfStatent(parser,condition,c);
+            this.emitCaseIfStatement(parser,condition,c);
         }
 
         if(!first)parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace, 0,0,0));
@@ -872,7 +872,7 @@ export class Parser {
             }
             if(lastNewLine) {
                 if(!t.isType(TokenType.WHITESPACE)) {
-                    if(indentation == 0) {
+                    if (indentation == 0) {
                         parser.emitToken(new Token(TokenType.WHITESPACE, indentationWhitespace + '    ', 0,0,0));
                     }
                     lastNewLine = false;
@@ -896,31 +896,37 @@ export class Parser {
         parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
     }
 
-    private static emitCaseIfStatent(parser: Parser,condition: Token[], caseBlock: CaseBlock): void {
-        parser.emitToken(new Token(TokenType.IDENTIFIER, `if`, 0,0,0));
-        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0,0,0));
-        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0,0,0));
+    private static emitCaseIfStatement(parser: Parser, condition: Token[], caseBlock: CaseBlock): void {
+        parser.emitToken(new Token(TokenType.IDENTIFIER, `if`, 0, 0, 0));
+        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0, 0, 0));
 
         parser.emitTokens(condition);
 
-        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0,0,0));
-        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
-        parser.emitToken(new Token(TokenType.OPERATOR, "==", 0,0,0));
-        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
-        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0,0,0));
+        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.OPERATOR, "==", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.PAREN_OPEN, "(", 0, 0, 0));
 
         parser.emitTokens(caseBlock.condition);
 
-        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0,0,0));
-        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0,0,0));
-        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
-        parser.emitToken(new Token(TokenType.IDENTIFIER, "jump", 0,0,0));
-        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0,0,0));
-        parser.emitToken(new Token(TokenType.IDENTIFIER, caseBlock.identifier, 0,0,0));
-        parser.emitToken(new Token(TokenType.PUNCTUATION, ";", 0,0,0));
-        parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0,0,0));
+        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.PAREN_CLOSE, ")", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.IDENTIFIER, "jump", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.WHITESPACE, " ", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.IDENTIFIER, caseBlock.identifier, 0, 0, 0));
+        parser.emitToken(new Token(TokenType.PUNCTUATION, ";", 0, 0, 0));
+        parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0, 0, 0));
     }
 
+    /**
+     * @deprecated Use emitCaseIfStatement instead. Kept for backward compatibility.
+     */
+    private static emitCaseIfStatent(parser: Parser, condition: Token[], caseBlock: CaseBlock): void {
+        Parser.emitCaseIfStatement(parser, condition, caseBlock);
+    }
     private static consumeCaseBlock(parser: Parser): CaseBlock | null {
         if(parser.isAtEnd()) return null;
         parser.skipWhitespace();
@@ -1449,11 +1455,11 @@ export class Parser {
                 }
             } else {
                 // Detect ... for __VA_ARGS__
-                if(current.value == ".") {
+                if (current.value === ".") {
                     const peek1 = this.peek(1);
                     const peek2 = this.peek(2);
-                    if(peek1 && peek2) {
-                        if(peek1.value == "." && peek2.value == ".") {
+                    if (peek1 && peek2) {
+                        if (peek1.value === "." && peek2.value === ".") {
                             this.advance(2);
                             parameters.push("...");
                         }
@@ -2227,14 +2233,17 @@ export class Parser {
 class RNG {
     private state: number;
     constructor(seed: number = 9863369152) {
-        this.state = seed;
+        // Ensure seed is treated as a 32-bit signed integer
+        this.state = seed | 0;
     }
     public next(): number {
-        // Xorshift* algorithm
+        // Xorshift* algorithm (32-bit integer arithmetic)
         let x = this.state;
         x ^= x << 13;
         x ^= x >> 17;
         x ^= x << 5;
+        // Clamp back to 32-bit signed integer
+        x |= 0;
         this.state = x;
         return x & 0x7FFFFFFF;
     }

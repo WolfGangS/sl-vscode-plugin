@@ -787,7 +787,7 @@ These are features supported for LSL only, and are mostly to provide parity with
 
 ### Switch statements
 
-If oyu enable the config `slVscodeEdit.preprocessor.lsl.switchStatements` in teh preprocessor section.
+If you enable the config `slVscodeEdit.preprocessor.lsl.switchStatements` in the preprocessor section.
 
 The preprocessor can handle switch statements by converting them to if conditionals with jumps.
 

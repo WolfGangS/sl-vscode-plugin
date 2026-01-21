@@ -408,20 +408,20 @@ export class MacroProcessor {
 
         // Support for variadic function expansions. e.g.
         // #define func(...) llOwnerSay((string)[__VA_ARGS__]))
-        const variadic = parameters[parameters.length - 1] == "...";
+        const variadic = parameters[parameters.length - 1] === "...";
         if(variadic) {
             parameters[parameters.length - 1] = "__VA_ARGS__";
             if(args.length > parameters.length) {
-                // Cut off variadic args, and combine them seperated by `, ` as a single argument
+                // Cut off variadic args, and combine them separated by `, ` as a single argument
                 const varArgs = args.splice(parameters.length - 1);
                 const tokens = [];
                 let first = true;
-                for(const tokes of varArgs) {
+                for (const tokensPart of varArgs) {
                     if(!first) {
                         tokens.push(new Token(TokenType.PUNCTUATION, ",", 0,0,1));
                         tokens.push(new Token(TokenType.WHITESPACE, " ", 0,0,1));
                     } else first = false;
-                    tokens.push(...tokes);
+                    tokens.push(...tokensPart);
                 }
                 args.push(tokens);
             }
