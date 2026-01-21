@@ -190,7 +190,9 @@ export class SynchService implements vscode.Disposable {
         const masterPath = masterUri.fsPath;
         // Open the master script file in the editor
         showInfoMessage(`Opening master script: ${path.basename(masterPath)}`);
-        let masterDoc = await SynchService.openMasterScript(masterUri);
+        let masterEditor = await SynchService.openMasterScript(masterUri);
+        let masterDoc = masterEditor.document
+        SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, viewerDocument)
 
         // Connection goes on in the background
         let viewerConnecting: Promise<boolean> = this.setupConnection();
@@ -656,10 +658,34 @@ export class SynchService implements vscode.Disposable {
 
     private static async openMasterScript(
         masterUri: vscode.Uri,
-    ): Promise<vscode.TextDocument> {
+    ): Promise<vscode.TextEditor> {
         const masterDoc = await vscode.workspace.openTextDocument(masterUri);
-        await vscode.window.showTextDocument(masterDoc, { preview: false });
-        return masterDoc;
+        return await vscode.window.showTextDocument(masterDoc, { preview: false });
+    }
+
+    private static checkAndUpdateMasterDocumentInBackground(masterEditor: vscode.TextEditor, viewerDocument: vscode.TextDocument): void {
+        if(!ConfigService.getInstance().getConfig<boolean>(ConfigKey.AskIfViewerScriptMismatchesMaster, true)) return;
+        if(masterEditor.document.getText() == viewerDocument.getText()) return;
+        const viewerFileName = SynchService.parseTempFile(viewerDocument.fileName)?.scriptName;
+        const masterFileName = path.basename(masterEditor.document.fileName);
+        vscode.window.showInformationMessage(`Viewer script "${viewerFileName}" differs from master script "${masterFileName}". What would you like to do?`,
+            "Ignore", "Overwrite master", "Compare", "Always ignore").then(async (pick) => {
+
+            if(pick === "Always ignore") {
+                ConfigService.getInstance().setConfig<boolean>(ConfigKey.AskIfViewerScriptMismatchesMaster, false);
+            } else if(pick === "Overwrite master") {
+                const firstLine = masterEditor.document.lineAt(0);
+                const lastLine = masterEditor.document.lineAt(masterEditor.document.lineCount - 1);
+                const textRange = new vscode.Range(firstLine.range.start, lastLine.range.end);
+                masterEditor.edit(edit => edit.replace(textRange, viewerDocument.getText()));
+            } else if(pick === "Compare") {
+                const viewer = viewerDocument.uri;
+                const master = masterEditor.document.uri;
+                const title = `${viewerFileName} (Viewer) ↔ ${masterFileName} (Master)`;
+                await vscode.commands.executeCommand("vscode.diff", viewer, master, title); //, { preview: false });
+            }
+        })
+        //*/
     }
 
     public getWebSocket(): ViewerEditWSClient | undefined {

@@ -81,6 +81,11 @@
       {
         "title": "SL Scripting - Sync",
         "properties": {
+          "slVscodeEdit.sync.askIfViewerScriptMismatchesMaster": {
+            "type": "boolean",
+            "default": true,
+            "description": "Should the plugin ask what to do if viewer file and master file have differences? You probably want to disable this if you use the proprocessor or require()"
+          },
           "slVscodeEdit.sync.compareHashBeforeSync": {
             "type": "boolean",
             "default": false,
