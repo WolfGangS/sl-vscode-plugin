@@ -308,7 +308,10 @@ export class SynchService implements vscode.Disposable {
             this.getHandshakePromise();
         showStatusMessage("Connecting to Second Life viewer...", handshake);
 
-        this.websocket = new ViewerEditWSClient(this.context);
+        this.websocket = new ViewerEditWSClient(
+            this.context,
+            `ws://localhost:${this.host.config.getConfig<number>(ConfigKey.NetworkWebsocketPort, 9020)}`
+        );
         this.websocket.setup(handlers);
         let connected = await this.websocket.connect();
 
