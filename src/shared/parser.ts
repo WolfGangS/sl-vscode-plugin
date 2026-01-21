@@ -150,7 +150,7 @@ export class Parser {
     // Diagnostic collector
     private diagnostics: DiagnosticCollector;
 
-    // Flag wether external require is allowed, passed down when using .luarc
+    // Flag whether external require is allowed, passed down when using .luarc
     private allowExternalRequires: boolean = false;
 
     constructor(
@@ -1608,7 +1608,7 @@ export class Parser {
      *     function require(mod)
      *         if not cache[mod] then
      *             if not mods[mod] then
-     *                 error(`unkown module '{mod}'`)
+     *                 error(`unknown module '{mod}'`)
      *             end
      *             cache[mod] = dangerouslyexecuterequiredmodule(mods[mod])
      *         end
@@ -1707,7 +1707,7 @@ export class Parser {
             [TokenType.WHITESPACE,"                "],
             [TokenType.IDENTIFIER,"error"],
             [TokenType.PAREN_OPEN,"("],
-            [TokenType.IDENTIFIER,"`unkown module '{mod}'`"],
+            [TokenType.IDENTIFIER,"`unknown module '{mod}'`"],
             [TokenType.PAREN_CLOSE,")"],
             [TokenType.NEWLINE,"\n"],
             [TokenType.WHITESPACE,"            "],
