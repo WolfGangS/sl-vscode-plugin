@@ -29,10 +29,10 @@ export enum ConfigKey {
   PreprocessorMaxIncludeDepth = 'preprocessor.maxIncludeDepth',
   PreprocessorConstantsInSLua = 'preprocessor.constantsInSLua',
   LastSyntaxID = 'syntax.lastID',
+  AskIfViewerScriptMismatchesMaster = 'sync.askIfViewerScriptMismatchesMaster',
   CompareHashBeforeSync = 'sync.compareHashBeforeSync',
 
   FileMetaInfoInOutput ='sync.includeFileMetaInOutput',
-  FileMetaInfoUseForMatching ='sync.useFileMetaForMatching',
   FileMetaInfoIncludeCreator ='sync.includeCreatorInFileMeta',
 }
 

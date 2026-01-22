@@ -138,7 +138,7 @@ export class LanguageTransformer {
         }
     }
 
-    public static translateLSLTypeToLua(lslType: string, isParamList?: boolean): string | null {
+    public static translateLSLTypeToLua(lslType: string, _isParamList?: boolean): string | null {
         if (!lslType) return null;
         const typeMap: Record<string, string> = {
             void: 'nil',
