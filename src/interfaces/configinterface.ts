@@ -30,6 +30,7 @@ export enum ConfigKey {
   PreprocessorConstantsInSLua = 'preprocessor.constantsInSLua',
   PreprocessorLSLSwitchStatements = 'preprocessor.lsl.switchStatements',
   LastSyntaxID = 'syntax.lastID',
+  AskIfViewerScriptMismatchesMaster = 'sync.askIfViewerScriptMismatchesMaster',
   CompareHashBeforeSync = 'sync.compareHashBeforeSync',
 
   FileMetaInfoInOutput ='sync.includeFileMetaInOutput',
