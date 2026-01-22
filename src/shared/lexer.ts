@@ -66,7 +66,7 @@ export const LANGUAGE_CONFIGS: Record<ScriptLanguage, LanguageLexerConfig> = {
         useLongBracketSyntax: false,
         supportsVectorLiterals: true,
         directivePrefix: "#",
-        directiveKeywords: ["defined"],
+        directiveKeywords: ["defined", "switch"],
         operators: [
             // Multi-character operators
             "==", "!=", "<=", ">=", "&&", "||", "<<", ">>",
@@ -208,6 +208,14 @@ export class Token {
      */
     emit(): string {
         return this.value;
+    }
+
+    is(type: TokenType, value: string): boolean {
+        return this.type === type && this.value === value;
+    }
+
+    isType(type: TokenType): boolean {
+        return this.type === type;
     }
 
     /**
