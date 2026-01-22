@@ -31,7 +31,7 @@ export interface IncludeResult {
     resolvedPath: NormalizedPath | null;
     /** Error message if unsuccessful */
     error?: string;
-    /** Wether the file was included via an external alias */
+    /** Whether the file was included via an external alias */
     external?: boolean;
 }
 
