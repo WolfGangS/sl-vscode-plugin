@@ -14,7 +14,7 @@ import {
     getLanguageConfig,
     CustomLanguageLexerConfig,
 } from "../../shared/lexer";
-import { LexingPreprocessor, PreprocessorOptions } from "../../shared/lexingpreprocessor";
+import { LexingPreprocessor, PreprocessorOptions, PreprocessorResult } from "../../shared/lexingpreprocessor";
 import { normalizePath, HostInterface, NormalizedPath } from "../../interfaces/hostinterface";
 import { FullConfigInterface, ConfigKey } from "../../interfaces/configinterface";
 
@@ -234,6 +234,32 @@ suite("Lexing Preprocessor Test Suite", () => {
             .map(line => line.trimEnd())  // Remove trailing spaces
             .join('\n')
             .replace(/\n{3,}/g, '\n\n');  // Collapse multiple blank lines to max 2
+    }
+
+    async function basicPreprocMatchExpectedAssert(source: string, expected: string) : Promise<PreprocessorResult> {
+        const options = createDefaultOptions();
+        const mockHost = createMockHost(options);
+        const preprocessor = new LexingPreprocessor(mockHost, mockHost.config);
+
+        const result = await preprocessor.process(
+            source,
+            normalizePath('/test/main.lsl'),
+            lslLanguageConfigWithSwitch
+        );
+
+        // Verify no errors
+        if(!result.success) {
+            for(const issue of result.issues) {
+                console.error(`Issue: ${issue.message} at line ${issue.lineNumber}`);
+            }
+        }
+        assert.ok(result.success, 'Processing should succeed');
+        assert.strictEqual(result.issues.length, 0, 'Should have no issues');
+
+        // Compare with expected output
+        assert.strictEqual(result.content, expected, 'Output should match expected');
+
+        return result;
     }
 
     suite("Lexer", () => {
@@ -1675,10 +1701,6 @@ jump c7b43f;
             lslLanguageConfigWithSwitch
         );
 
-        console.error("======RESULT CONTENT======");
-        console.error(result.content);
-        console.error("======END RESULT CONTENT======");
-
         // Compare with expected output
         assert.strictEqual(result.content, expected, 'Output should match expected file');
 
@@ -1686,4 +1708,49 @@ jump c7b43f;
         assert.ok(result.success, 'Processing should succeed');
         assert.strictEqual(result.issues.length, 0, 'Should have no issues');
     });
+
+    test('empty function macro', async () => {
+        const source = `#define OP() llSleep(1)
+#define NOOP(a,b,c,d)
+OP();
+NOOP(1,2,3,4);
+integer x = 42;`;
+        const expected = `llSleep(1);
+;
+integer x = 42;`;
+
+        const options = createDefaultOptions();
+        const mockHost = createMockHost(options);
+        const preprocessor = new LexingPreprocessor(mockHost, mockHost.config);
+
+        const result = await preprocessor.process(
+            source,
+            normalizePath('/test/main.lsl'),
+            lslLanguageConfigWithSwitch
+        );
+
+        // Compare with expected output
+        assert.strictEqual(result.content, expected, 'Output should match expected file');
+
+        // Verify no errors
+        assert.ok(result.success, 'Processing should succeed');
+        assert.strictEqual(result.issues.length, 0, 'Should have no issues');
+
+    });
+
+    test('function macro with list argument', async () => {
+        const source = `#define implode(sep,lst) llDumpList2String(lst, sep)
+implode(",", [1, 2, 3, 4, 5]);`;
+        const expected = `llDumpList2String([1, 2, 3, 4, 5], ",");`;
+
+        await basicPreprocMatchExpectedAssert(source, expected);
+    });
+
+    test('variadic function macro', async () => {
+        const source = `#define LOG(fmt, ...) llOwnerSay(llDumpList2String([fmt, __VA_ARGS__], " "))
+LOG("Values are:", 1, 2, 3, 4, 5);`;
+        const expected = `llOwnerSay(llDumpList2String(["Values are:", 1, 2, 3, 4, 5], " "));`;
+        await basicPreprocMatchExpectedAssert(source, expected);
+    });
+
 });

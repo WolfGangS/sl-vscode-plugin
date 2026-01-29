@@ -496,6 +496,53 @@ integer result = SQUARE(ADD(2, 3));  // Expands to ((2 + 3) * (2 + 3))
 integer result2 = CUBE(ADD(1, 2));   // Expands to ((1 + 2) * ((1 + 2) * (1 + 2)))
 ```
 
+### Variadic Macros
+
+Macro function can be variadic, allowing you to pass any number of arguments (usually to handle them as a list)
+
+```lsl
+#define LOG(type,...) llOwnerSay(llDumpList2String([type,":",__VA_ARGS__]," "))
+
+// Before preproccessing
+LOG("Test",1,2,3,4);
+
+// Result
+llOwnerSay(llDumpList2String(["Test",":",1,2,3,4]," "));
+```
+
+### Empty Function macros
+
+A common usecase for function macro's is debug statements only when a `DEBUG` flag is set, you can achieve this with a conditional function macro with one instance having an empty body
+
+```lsl
+#ifdef DEBUG
+#define debug(...) llOwnerSay(llDumpList2String([__VA_ARGS__]," "))
+#else
+#define debug(...)
+#endif
+
+default {
+    state_entry() {
+        llOwnerSay("Start");
+        debug("This is a debug message:", 1, 2, 3);
+    }
+}
+```
+
+Would output
+
+```lsl
+default {
+    state_entry() {
+        llOwnerSay("Start");
+        ;
+    }
+}
+```
+
+Which is valid LSL and the extra `;` does not consume bytecode memory.
+
+
 ### Stringization Operator (#)
 
 The stringization operator (`#`) converts macro parameters into string literals. This is particularly useful for debugging, logging, and creating dynamic messages.

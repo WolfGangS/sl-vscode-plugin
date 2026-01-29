@@ -351,4 +351,42 @@ suite('LSL Include Directive Tests - Disk-based Integration', () => {
         assert.ok(result.success, 'Processing should succeed');
         assert.strictEqual(result.issues.length, 0, 'Should have no issues');
     });
+
+
+    test('test empty defined function macro handling', async () => {
+        const testFile = normalizePath(path.join(workspaceRoot, 'test_define_nix_function.lsl'));
+        const expectedFile = path.join(workspaceRoot, 'test_define_nix_function_expected.lsl');
+        const source = fs.readFileSync(testFile, 'utf-8');
+        const expected = fs.readFileSync(expectedFile, 'utf-8');
+        const preprocessor = new LexingPreprocessor(host, host.config);
+
+        const result = await preprocessor.process(source, testFile, lslLanguageConfig);
+
+        // Compare with expected output
+        assert.strictEqual(result.content, expected, 'Output should match expected file');
+
+        // Verify no errors
+        assert.ok(result.success, 'Processing should succeed');
+        assert.strictEqual(result.issues.length, 0, 'Should have no issues');
+    });
+
+    const variants = ["debug", "no_debug"];
+    for (const variant of variants) {
+        test('nested if and define directives should work correctly ' + variant, async () => {
+            const testFile = normalizePath(path.join(workspaceRoot, `test_nested_if_define_${variant}.lsl`));
+            const expectedFile = path.join(workspaceRoot, `test_nested_if_define_${variant}_expected.lsl`);
+            const source = fs.readFileSync(testFile, 'utf-8');
+            const expected = fs.readFileSync(expectedFile, 'utf-8');
+            const preprocessor = new LexingPreprocessor(host, host.config);
+
+            const result = await preprocessor.process(source, testFile, lslLanguageConfig);
+
+            // Compare with expected output
+            assert.strictEqual(result.content.trim(), expected.trim(), 'Output should match expected file');
+
+            // Verify no errors
+            assert.ok(result.success, 'Processing should succeed');
+            assert.strictEqual(result.issues.length, 0, 'Should have no issues');
+        });
+    }
 });

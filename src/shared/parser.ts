@@ -1428,8 +1428,9 @@ export class Parser {
         this.skipWhitespace();
 
         while (!this.isAtEnd() && this.current().type !== TokenType.PAREN_CLOSE) {
-            if (this.current().isIdentifier()) {
-                parameters.push(this.current().value);
+            const current = this.current();
+            if (current.isIdentifier()) {
+                parameters.push(current.value);
                 this.advance();
                 this.skipWhitespace();
 
@@ -1438,6 +1439,17 @@ export class Parser {
                     this.skipWhitespace();
                 }
             } else {
+                // Detect ... for __VA_ARGS__
+                if(current.value == ".") {
+                    const peek1 = this.peek(1);
+                    const peek2 = this.peek(2);
+                    if(peek1 && peek2) {
+                        if(peek1.value == "." && peek2.value == ".") {
+                            this.advance(2);
+                            parameters.push("...");
+                        }
+                    }
+                }
                 this.advance(); // skip unexpected token
             }
         }
@@ -1449,6 +1461,33 @@ export class Parser {
         return parameters;
     }
 
+    private consumeEncapsulatedSequence(enter: TokenType, exit: TokenType) : Token[] {
+        const first = this.consumeTokenOfType(enter);
+        const tokens = [first];
+        let depth = 1;
+        while(!this.isAtEnd()) {
+            const current = this.current();
+            if(current.type == enter) depth++;
+            else if(current.type == exit) depth--;
+            tokens.push(current);
+            this.advance();
+            if(depth == 0) {
+                return tokens;
+            }
+        }
+        this.diagnostics.addError(
+            `Unclosed sequence wrapped with ${enter} ${exit}`,
+            {
+                line: first.line,
+                column: first.column,
+                length: first.value.length,
+                sourceFile: this.sourceFile,
+            },
+            ErrorCodes.INVALID_MACRO_INVOCATION
+        );
+        return [];
+    }
+
     /**
      * Parse argument list for macro invocation: (expr1, expr2, expr3)
      */
@@ -1457,7 +1496,7 @@ export class Parser {
         let currentArg: Token[] = [];
         let parenDepth = 0;
 
-        this.advance(); // consume (
+        this.consumeTokenOfType(TokenType.PAREN_OPEN, "function macro call"); // consume (
 
         while (!this.isAtEnd()) {
             const token = this.current();
@@ -1480,6 +1519,10 @@ export class Parser {
                 }
                 parenDepth--;
                 currentArg.push(token);
+            } else if(token.type === TokenType.BRACKET_OPEN) {
+                // Consume list
+                currentArg.push(...this.consumeEncapsulatedSequence(TokenType.BRACKET_OPEN, TokenType.BRACKET_CLOSE));
+                continue;
             } else if (token.value === ',' && parenDepth === 0) {
                 // Argument separator
                 // Trim whitespace from argument
