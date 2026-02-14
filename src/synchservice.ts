@@ -551,6 +551,10 @@ export class SynchService implements vscode.Disposable {
 
     public async forceLanguageUpdate(): Promise<void> {
         const service = LanguageService.getInstance();
+        const defaultSuccess = await service.changeSyntaxVersion('default');
+        if (!defaultSuccess) {
+            showWarningMessage("Failed to update default syntax.");
+        }
         const socket = this.getWebSocket();
         if (!socket || !socket.isConnected()) {
             showWarningMessage("No viewer connection for syntax update.");
