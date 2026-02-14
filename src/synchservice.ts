@@ -139,6 +139,10 @@ export class SynchService implements vscode.Disposable {
     }
 
     private async initializeSyntax(): Promise<void> {
+        const autoUpdate: boolean = ConfigService.getInstance().getConfig<boolean>(ConfigKey.AutoUpdateLanguageFiles) != false
+        if (!autoUpdate) {
+            return;
+        }
         let loaded = false;
         const lastSyntaxID = ConfigService.getInstance().getConfig<string>(ConfigKey.LastSyntaxID);
         const languageService = LanguageService.getInstance();
@@ -528,6 +532,11 @@ export class SynchService implements vscode.Disposable {
     //====================================================================
     //#region Language version checking and management
     public checkLanguageVersion(): boolean | undefined {
+        const autoUpdate: boolean = ConfigService.getInstance().getConfig<boolean>(ConfigKey.AutoUpdateLanguageFiles) != false
+        if (!autoUpdate) {
+            return true;
+        }
+
         if (!this.syntaxId) {
             return;
         }
