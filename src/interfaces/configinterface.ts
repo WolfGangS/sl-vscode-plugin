@@ -12,7 +12,7 @@ import { NormalizedPath } from './hostinterface';
 /** Keys used by configuration (mirrors LLConfigNames). */
 export enum ConfigKey {
   Enabled = 'enabled',
-  AutoUpdateLanguageFiles = 'autoUpdateLanguageFiles',
+  AutoUpdateLanguageFiles = 'syntax.autoUpdate',
   ClientName = 'client.name',
   ClientVersion = 'client.version',
   ClientProtocolVersion = 'client.protocolVersion',
