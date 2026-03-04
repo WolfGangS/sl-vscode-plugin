@@ -615,17 +615,15 @@ export class SynchService implements vscode.Disposable {
         viewerFile: vscode.TextDocument
     ): Promise<vscode.Uri | null> {
         // Attempt to match by file meta info
-        if(ConfigService.getInstance().getConfig<boolean>(ConfigKey.FileMetaInfoInOutput, false)) {
-            const cmt = LANGUAGE_CONFIGS[script.language].lineCommentPrefix;
-            const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`,"i");
-            const range = new vscode.Range(0,0,10,0);
-            const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
-            if(start) {
-                const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
-                if(files.length == 1) {
-                    console.warn("Match on meta info");
-                    return files[0];
-                }
+        const cmt = LANGUAGE_CONFIGS[script.language].lineCommentPrefix;
+        const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`,"i");
+        const range = new vscode.Range(0,0,10,0);
+        const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
+        if(start) {
+            const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
+            if(files.length == 1) {
+                console.warn("Match on meta info");
+                return files[0];
             }
         }
 
