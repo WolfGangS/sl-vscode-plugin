@@ -684,8 +684,8 @@ export class SynchService implements vscode.Disposable {
         const viewerFileName = SynchService.parseTempFile(viewerDocument.fileName)?.scriptName;
         const masterFileName = path.basename(masterEditor.document.fileName);
         vscode.window.showInformationMessage(`Viewer script "${viewerFileName}" differs from master script "${masterFileName}". What would you like to do?`,
-            "Ignore", "Overwrite master", "Compare", "Always ignore").then(async (pick) => {
-
+            "Ignore", "Overwrite master", "Compare", "Always ignore")
+            .then(async (pick) => {
                 if (pick === "Always ignore") {
                     ConfigService.getInstance().setConfig<boolean>(ConfigKey.AskIfViewerScriptMismatchesMaster, false);
                 } else if (pick === "Overwrite master") {
