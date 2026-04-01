@@ -8,7 +8,6 @@ import { Parser } from '../../shared/parser';
 import { getLanguageConfig, Lexer } from '../../shared/lexer';
 import { DiagnosticCollector, DiagnosticSeverity, ErrorCodes } from '../../shared/diagnostics';
 import { normalizePath, NormalizedPath } from '../../interfaces/hostinterface';
-import { get } from 'http';
 
 suite('Parser Diagnostics Integration', () => {
     let sourceFile: NormalizedPath;

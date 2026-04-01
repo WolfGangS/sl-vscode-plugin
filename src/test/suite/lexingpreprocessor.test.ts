@@ -1595,7 +1595,7 @@ default { state_entry() {} }`;
         });
     });
 
-    test('should allow switch as identifier if switch statments not enabled for lsl preproc', async () => {
+    test('should allow switch as identifier if switch statements not enabled for lsl preproc', async () => {
         const source = `integer switch = 1;`;
         const expected = `integer switch = 1;`;
 
@@ -1639,7 +1639,7 @@ default { state_entry() {} }`;
         assert.strictEqual(result.issues.length, 1, 'Should have 1 issue');
     });
 
-    test('should allow switch as identifier if switch statments not enabled for lsl preproc', async () => {
+    test('should process switch as if switch statments are enabled for lsl preproc', async () => {
         const source = `switch(a) {
     case 1: {
         print("One");
@@ -1674,10 +1674,6 @@ jump c7b43f;
             normalizePath('/test/main.lsl'),
             lslLanguageConfigWithSwitch
         );
-
-        console.error("======RESULT CONTENT======");
-        console.error(result.content);
-        console.error("======END RESULT CONTENT======");
 
         // Compare with expected output
         assert.strictEqual(result.content, expected, 'Output should match expected file');

@@ -15,7 +15,6 @@ import * as path from 'path';
 import { Parser } from '../../shared/parser';
 import { getLanguageConfig, Lexer } from '../../shared/lexer';
 import { HostInterface, NormalizedPath, normalizePath } from '../../interfaces/hostinterface';
-import { get } from 'http';
 
 suite('Require Table Tests', () => {
     const testFile = normalizePath('/test/main.luau');

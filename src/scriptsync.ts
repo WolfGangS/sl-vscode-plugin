@@ -399,7 +399,6 @@ export class ScriptSync implements vscode.Disposable {
 
             this.macros.clearNonSystemMacros();
             const languageConfig = this.getLanuageConfig();
-            console.error("LANG CONFIG", languageConfig);
             preprocessorResult = await this.preprocessor.process(
                 originalContent,
                 normalizePath(masterFilePath),

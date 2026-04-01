@@ -47,9 +47,32 @@ export interface ParserState {
     /** Require state (for SLua require() directives) - only present when require is supported */
     requireState?: RequireState;
     /** Set of unique identifiers to use for naming things like switch/loop jumps */
-    uniqueidentifiers: Set<string>;
+    uniqueIdentifiers: Set<string>;
     /** Random number state, for deterministic random number generation */
     random: RNG;
+}
+
+class RNG {
+    private state: number;
+    constructor(seed: number = 9863369152) {
+        // Ensure seed is treated as a 32-bit signed integer
+        this.state = seed | 0;
+    }
+    public next(): number {
+        // Xorshift* algorithm (32-bit integer arithmetic)
+        let x = this.state;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        // Clamp back to 32-bit signed integer
+        x |= 0;
+        this.state = x;
+        return x & 0x7FFFFFFF;
+    }
+
+    public nextHex(): string {
+        return this.next().toString(16).padStart(8, '0');
+    }
 }
 
 //#endregion
@@ -207,7 +230,7 @@ export class Parser {
             conditionals: initialState?.conditionals || new ConditionalProcessor(this.language),
             includes: initialState?.includes || (host ? new IncludeProcessor(this.language, host) : undefined as any),
             includeState: initialState?.includeState || IncludeProcessor.createState(maxIncludeDepth, includePaths),
-            uniqueidentifiers: initialState?.uniqueidentifiers || new Set<string>(),
+            uniqueIdentifiers: initialState?.uniqueIdentifiers || new Set<string>(),
             random: initialState?.random || new RNG(),
         };
 
@@ -282,7 +305,7 @@ export class Parser {
             conditionals: new ConditionalProcessor(language),
             includes: host ? new IncludeProcessor(language, host) : undefined as any,
             includeState: IncludeProcessor.createState(maxIncludeDepth, includePaths),
-            uniqueidentifiers: new Set<string>(),
+            uniqueIdentifiers: new Set<string>(),
             random: new RNG(),
         };
     }
@@ -750,7 +773,7 @@ export class Parser {
     /**
      * Handle switch directive (LSL)
      */
-    private static handleSwitchDirective(parser: Parser): void {
+    private static async handleSwitchDirective(parser: Parser): Promise<void> {
         const directiveToken = parser.current();
         parser.advance();
 
@@ -779,11 +802,11 @@ export class Parser {
         parser.consumeTokenOfType(TokenType.BRACE_OPEN, 'SWITCH directive');
         parser.skipWhitespace();
 
-        let caseBlock = this.consumeCaseBlock(parser);
+        let caseBlock = await this.consumeCaseBlock(parser);
         let cases = [];
         while(caseBlock) {
             cases.push(caseBlock);
-            caseBlock = this.consumeCaseBlock(parser);
+            caseBlock = await this.consumeCaseBlock(parser);
         }
 
         if(cases.length < 1) {
@@ -860,6 +883,7 @@ export class Parser {
                 parser.emitToken(new Token(TokenType.IDENTIFIER, outJump, 0,0,0));
                 continue;
             }
+            let tokenToEmit = t;
             if(lastNewLine) {
                 if(!t.isType(TokenType.WHITESPACE)) {
                     if (indentation == 0) {
@@ -867,14 +891,14 @@ export class Parser {
                     }
                     lastNewLine = false;
                 } else {
-                    t.value = t.value.substring(4);
+                    tokenToEmit = new Token(TokenType.WHITESPACE, t.value.substring(4),t.line,t.column,t.length);
                 }
             }
-            parser.emitToken(t);
-            if(lastNewLine && t.type == TokenType.WHITESPACE) {
-                indentation += t.value.length;
+            parser.emitToken(tokenToEmit);
+            if(lastNewLine && tokenToEmit.type == TokenType.WHITESPACE) {
+                indentation += tokenToEmit.value.length;
             }
-            if(t.isType(TokenType.NEWLINE)) {
+            if(tokenToEmit.isType(TokenType.NEWLINE)) {
                 indentation = 0;
                 lastNewLine = true;
             }
@@ -911,7 +935,7 @@ export class Parser {
         parser.emitToken(new Token(TokenType.NEWLINE, "\n", 0, 0, 0));
     }
 
-    private static consumeCaseBlock(parser: Parser): CaseBlock | null {
+    private static async consumeCaseBlock(parser: Parser): Promise<CaseBlock | null> {
         if(parser.isAtEnd()) return null;
         parser.skipWhitespace();
         const keyword = parser.consumeTokenIfType(TokenType.IDENTIFIER);
@@ -984,7 +1008,7 @@ export class Parser {
                     break;
                 }
             }
-            parser.parseToken(current);
+            await parser.parseToken(current);
         }
         const body = parser.outputTokens;
         parser.outputTokens = originalOutput;
@@ -1347,11 +1371,11 @@ export class Parser {
 
     private generateUniqueIdentifier(len: number = 6, prefix: string = "u"): string {
         let identifier: string = "";
-        while(identifier.length < 1 || this.state.uniqueidentifiers.has(identifier)) {
+        while(identifier.length < 1 || this.state.uniqueIdentifiers.has(identifier)) {
             const rand = this.state.random.nextHex();
             identifier = prefix + rand.substring(rand.length - len);
         }
-        this.state.uniqueidentifiers.add(identifier);
+        this.state.uniqueIdentifiers.add(identifier);
         return identifier;
     }
 
@@ -2164,30 +2188,6 @@ export class Parser {
     }
 
     //#endregion
-}
-
-
-class RNG {
-    private state: number;
-    constructor(seed: number = 9863369152) {
-        // Ensure seed is treated as a 32-bit signed integer
-        this.state = seed | 0;
-    }
-    public next(): number {
-        // Xorshift* algorithm (32-bit integer arithmetic)
-        let x = this.state;
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        // Clamp back to 32-bit signed integer
-        x |= 0;
-        this.state = x;
-        return x & 0x7FFFFFFF;
-    }
-
-    public nextHex(): string {
-        return this.next().toString(16).padStart(8, '0');
-    }
 }
 
 //#endregion
