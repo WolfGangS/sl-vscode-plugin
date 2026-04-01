@@ -398,7 +398,7 @@ export class ScriptSync implements vscode.Disposable {
             console.log(`Preprocessing enabled for: ${baseName}`);
 
             this.macros.clearNonSystemMacros();
-            const languageConfig = this.getLanuageConfig();
+            const languageConfig = this.getLanguageConfig();
             preprocessorResult = await this.preprocessor.process(
                 originalContent,
                 normalizePath(masterFilePath),
@@ -440,7 +440,7 @@ export class ScriptSync implements vscode.Disposable {
         return finalContent;
     }
 
-    private getLanuageConfig(): LanguageLexerConfig {
+    private getLanguageConfig(): LanguageLexerConfig {
         const config = getLanguageConfig(this.language);
         if(config.name === "lsl" && this.config.getConfig<boolean>(ConfigKey.PreprocessorLSLSwitchStatements, false)) {
             config.directiveKeywords.push("switch");
@@ -503,7 +503,7 @@ export class ScriptSync implements vscode.Disposable {
 
         const path = vscode.workspace.asRelativePath(this.masterDocument.uri.fsPath);
 
-        const comment =  this.getLanuageConfig().lineCommentPrefix;
+        const comment =  this.getLanguageConfig().lineCommentPrefix;
         meta.push(`${comment} ================ sl-vscode-plugin meta ================`);
         meta.push(`${comment} @file ${path}`);
         meta.push(`${comment} @hash ${hash}`);
