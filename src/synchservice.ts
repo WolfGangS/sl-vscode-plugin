@@ -139,6 +139,10 @@ export class SynchService implements vscode.Disposable {
     }
 
     private async initializeSyntax(): Promise<void> {
+        const autoUpdate: boolean = ConfigService.getInstance().getConfig<boolean>(ConfigKey.AutoUpdateLanguageFiles) != false
+        if (!autoUpdate) {
+            return;
+        }
         let loaded = false;
         const lastSyntaxID = ConfigService.getInstance().getConfig<string>(ConfigKey.LastSyntaxID);
         const languageService = LanguageService.getInstance();
@@ -528,6 +532,11 @@ export class SynchService implements vscode.Disposable {
     //====================================================================
     //#region Language version checking and management
     public checkLanguageVersion(): boolean | undefined {
+        const autoUpdate: boolean = ConfigService.getInstance().getConfig<boolean>(ConfigKey.AutoUpdateLanguageFiles) != false
+        if (!autoUpdate) {
+            return true;
+        }
+
         if (!this.syntaxId) {
             return;
         }
@@ -542,6 +551,10 @@ export class SynchService implements vscode.Disposable {
 
     public async forceLanguageUpdate(): Promise<void> {
         const service = LanguageService.getInstance();
+        const defaultSuccess = await service.changeSyntaxVersion('default');
+        if (!defaultSuccess) {
+            showWarningMessage("Failed to update default syntax.");
+        }
         const socket = this.getWebSocket();
         if (!socket || !socket.isConnected()) {
             showWarningMessage("No viewer connection for syntax update.");
@@ -615,17 +628,15 @@ export class SynchService implements vscode.Disposable {
         viewerFile: vscode.TextDocument
     ): Promise<vscode.Uri | null> {
         // Attempt to match by file meta info
-        if(ConfigService.getInstance().getConfig<boolean>(ConfigKey.FileMetaInfoInOutput, false)) {
-            const cmt = LANGUAGE_CONFIGS[script.language].lineCommentPrefix;
-            const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`,"i");
-            const range = new vscode.Range(0,0,10,0);
-            const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
-            if(start) {
-                const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
-                if(files.length == 1) {
-                    console.warn("Match on meta info");
-                    return files[0];
-                }
+        const cmt = LANGUAGE_CONFIGS[script.language].lineCommentPrefix;
+        const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`,"i");
+        const range = new vscode.Range(0,0,10,0);
+        const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
+        if(start) {
+            const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
+            if(files.length == 1) {
+                console.warn("Match on meta info");
+                return files[0];
             }
         }
 

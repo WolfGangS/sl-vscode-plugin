@@ -59,6 +59,11 @@
             "default": true,
             "description": "Whether the SL VS Code extension is enabled"
           },
+          "slVscodeEdit.syntax.autoUpdate": {
+            "type": "boolean",
+            "default": true,
+            "description": "If false, do not update Luau-LSP and Selene configurations unless the Force Language Update is done"
+          },
           "slVscodeEdit.ui.statusTimeoutSeconds": {
             "type": "number",
             "default": 3,
