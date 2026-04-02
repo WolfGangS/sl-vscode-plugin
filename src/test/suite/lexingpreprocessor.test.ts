@@ -1639,7 +1639,7 @@ default { state_entry() {} }`;
         assert.strictEqual(result.issues.length, 1, 'Should have 1 issue');
     });
 
-    test('should process switch as if switch statments are enabled for lsl preproc', async () => {
+    test('should process switch as if switch statements are enabled for lsl preproc', async () => {
         const source = `switch(a) {
     case 1: {
         print("One");
