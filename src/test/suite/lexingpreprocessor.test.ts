@@ -1639,7 +1639,7 @@ default { state_entry() {} }`;
         assert.strictEqual(result.issues.length, 1, 'Should have 1 issue');
     });
 
-    test('should process switch as if switch statements are enabled for lsl preproc', async () => {
+    test('should process switch if switch statements are enabled for lsl preproc', async () => {
         const source = `switch(a) {
     case 1: {
         print("One");
@@ -1659,7 +1659,7 @@ jump c7b43f;
 }
 @c7b43f;
 {
-    // @line 7 "unittest:///test/main.lsl"
+// @line 7 "unittest:///test/main.lsl"
     print("Other");
     jump sfcc97;
 }
@@ -1674,6 +1674,9 @@ jump c7b43f;
             normalizePath('/test/main.lsl'),
             lslLanguageConfigWithSwitch
         );
+        console.error("=======================");
+        console.error(result.content);
+        console.error("=======================");
 
         // Compare with expected output
         assert.strictEqual(result.content, expected, 'Output should match expected file');
