@@ -33,6 +33,7 @@ export enum ConfigKey {
   LastSyntaxID = 'syntax.lastID',
   AskIfViewerScriptMismatchesMaster = 'sync.askIfViewerScriptMismatchesMaster',
   CompareHashBeforeSync = 'sync.compareHashBeforeSync',
+  NotecardSyncComment = 'sync.notecardComment',
 
   FileMetaInfoInOutput ='sync.includeFileMetaInOutput',
   FileMetaInfoIncludeCreator ='sync.includeCreatorInFileMeta',

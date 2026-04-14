@@ -5,3 +5,4 @@ node_modules
 *.vsix
 *.code-workspace
 .vscode/settings.json
+.vscode/lsl-lsp-server.log

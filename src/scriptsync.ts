@@ -29,7 +29,7 @@ import { HostInterface, normalizePath } from "./interfaces/hostinterface";
 import { SynchService } from "./synchservice";
 import { IncludeInfo } from "./shared/parser";
 import { sha256 } from "js-sha256";
-import { getLanguageConfig, LanguageLexerConfig } from "./shared/lexer";
+import { getLanguageConfig, isProccessedLanguage, LanguageLexerConfig } from "./shared/lexer";
 
 //====================================================================
 interface TrackedDocument {
@@ -74,8 +74,8 @@ export class ScriptSync implements vscode.Disposable {
         this.host = host ?? new VSCodeHost();
 
         // Initialize preprocessor with macro processor
-        const enabled = config.getConfig<boolean>(ConfigKey.PreprocessorEnable) ?? true;
-        if (enabled) {
+        const enabled = config.getConfig<boolean>(ConfigKey.PreprocessorEnable, true);
+        if (enabled && isProccessedLanguage(this.language)) {
             this.preprocessor = new LexingPreprocessor(this.host, config, this.macros);
         }
 
@@ -441,7 +441,7 @@ export class ScriptSync implements vscode.Disposable {
     }
 
     private getLanguageConfig(): LanguageLexerConfig {
-        const config = getLanguageConfig(this.language);
+        const config = getLanguageConfig(this.language, this.config);
         if(config.name === "lsl" && this.config.getConfig<boolean>(ConfigKey.PreprocessorLSLSwitchStatements, false)) {
             config.directiveKeywords.push("switch");
         }
@@ -504,14 +504,19 @@ export class ScriptSync implements vscode.Disposable {
         const path = vscode.workspace.asRelativePath(this.masterDocument.uri.fsPath);
 
         const comment =  this.getLanguageConfig().lineCommentPrefix;
+
+        if(comment.length < 1) return content;
+
         meta.push(`${comment} ================ sl-vscode-plugin meta ================`);
         meta.push(`${comment} @file ${path}`);
         meta.push(`${comment} @hash ${hash}`);
         meta.push(`${comment} @date ${date[0]} ${date[1].split(".")[0]}`);
         // console.error("PREFIX CREATOR", this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator,false));
         if(this.config.getConfig<boolean>(ConfigKey.FileMetaInfoIncludeCreator, false)) {
-            meta.push(`${comment} @creator ${ScriptSync.getCurrentAgentName()}`);
-            meta.push(`${comment} @creatorID ${ScriptSync.getCurrentAgentId()}`);
+            const agentName = ScriptSync.getCurrentAgentName();
+            if(agentName) meta.push(`${comment} @creator ${agentName}`);
+            const agentID = ScriptSync.getCurrentAgentId();
+            if(agentID) meta.push(`${comment} @creatorID ${agentID}`);
         }
         meta.push(`${comment} =======================================================`);
         meta.push(content)
@@ -526,12 +531,12 @@ export class ScriptSync implements vscode.Disposable {
         return this.fileMappings.filter(mapping => mapping.hash !== hash);
     }
 
-    private static getCurrentAgentId(): string {
-        return SynchService.getInstance().agentId || "unknown-agent-id";
+    private static getCurrentAgentId(): string | null {
+        return SynchService.getInstance().agentId ?? null;
     }
 
-    private static getCurrentAgentName(): string {
-        return SynchService.getInstance().agentName || "unknown-agent-name";
+    private static getCurrentAgentName(): string | null {
+        return SynchService.getInstance().agentName ?? null;
     }
 
     private initializeSystemMacros(language: ScriptLanguage): void {
@@ -545,16 +550,16 @@ export class ScriptSync implements vscode.Disposable {
 
         this.macros.clear();
         if (language === "lsl") {
-            this.macros.defineSystemMacro("__AGENTKEY__", (_context) => `"${ScriptSync.getCurrentAgentId()}"`);
-            this.macros.defineSystemMacro("__AGENTIDRAW__", (_context) => ScriptSync.getCurrentAgentId());
+            this.macros.defineSystemMacro("__AGENTKEY__", (_context) => `"${ScriptSync.getCurrentAgentId() ?? "unkown-agent-id"}"`);
+            this.macros.defineSystemMacro("__AGENTIDRAW__", (_context) => ScriptSync.getCurrentAgentId() ?? "unkown-agent-id");
         } else if(language === "luau") {
-            this.macros.defineSystemMacro("__AGENTKEY__", (_context) => `uuid("${ScriptSync.getCurrentAgentId()}")`);
+            this.macros.defineSystemMacro("__AGENTKEY__", (_context) => `uuid("${ScriptSync.getCurrentAgentId() ?? "unkown-agent-id"}")`);
         }
         this.macros.defineSystemMacro("__LINE__", (context) => context.line.toString());
         this.macros.defineSystemMacro("__FILE__", (context) => `"${path.normalize(context.sourceFile)}"`);
         this.macros.defineSystemMacro("__SHORTFILE__", (context) => `"${path.basename(path.normalize(context.sourceFile))}"`);
-        this.macros.defineSystemMacro("__AGENTID__", (_context) => `"${ScriptSync.getCurrentAgentId()}"`);
-        this.macros.defineSystemMacro("__AGENTNAME__", (_context) => `"${ScriptSync.getCurrentAgentName()}"`);
+        this.macros.defineSystemMacro("__AGENTID__", (_context) => `"${ScriptSync.getCurrentAgentId() ?? "unknown-agent-id"}"`);
+        this.macros.defineSystemMacro("__AGENTNAME__", (_context) => `"${ScriptSync.getCurrentAgentName() ?? "unknown-agent-name"}"`);
         //this.macros.defineSystemMacro("__ASSETID__", (_context) => `"${getCurrentAssetId()}"`);
         this.macros.defineSystemMacro("__DATE__", (_context) => {
             let date = new Date();

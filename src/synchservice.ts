@@ -5,7 +5,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { SCRIPT_FILE_PATTERN, ConfigService } from "./configservice";
+import { SCRIPT_FILE_PATTERN, ConfigService, NOTECARD_FILE_PATTERN } from "./configservice";
 import { ConfigKey } from "./interfaces/configinterface";
 import {
     ViewerEditWSClient,
@@ -578,6 +578,12 @@ export class SynchService implements vscode.Disposable {
     private static parseTempFile(
         viewerFilePath: string,
     ): ParsedTempFile | null {
+        return SynchService.parseTempScriptFile(viewerFilePath) ?? SynchService.parseTempNotecardFile(viewerFilePath);
+    }
+
+    private static parseTempScriptFile(
+        viewerFilePath: string,
+    ): ParsedTempFile | null {
         const openedBase = path.basename(viewerFilePath);
         const match = openedBase.match(SCRIPT_FILE_PATTERN);
 
@@ -587,6 +593,22 @@ export class SynchService implements vscode.Disposable {
                 scriptId: match[2],
                 extension: match[3],
                 language: match[3].toLowerCase() == "lsl" ? "lsl" : "luau",
+            }
+            : null;
+    }
+
+    private static parseTempNotecardFile(
+        viewerFilePath: string,
+    ): ParsedTempFile | null {
+        const openedBase = path.basename(viewerFilePath);
+        const match = openedBase.match(NOTECARD_FILE_PATTERN);
+
+        return match
+            ? {
+                scriptName: match[1],
+                scriptId: match[2],
+                extension: "txt",
+                language: "txt",
             }
             : null;
     }
@@ -627,19 +649,8 @@ export class SynchService implements vscode.Disposable {
         viewerFile: vscode.TextDocument
     ): Promise<vscode.Uri | null> {
         // Attempt to match by file meta info
-        if (ConfigService.getInstance().getConfig<boolean>(ConfigKey.FileMetaInfoInOutput, false)) {
-            const cmt = getLanguageConfig(script.language).lineCommentPrefix;
-            const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`, "i");
-            const range = new vscode.Range(0, 0, 10, 0);
-            const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
-            if (start) {
-                const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
-                if (files.length == 1) {
-                    console.warn("Match on meta info");
-                    return files[0];
-                }
-            }
-        }
+        const metaMatch = SynchService.findMasterFileByMetaComment(script, viewerFile);
+        if(metaMatch) return metaMatch;
 
         let files = await vscode.workspace.findFiles(`**/${script.scriptName}.${script.extension}`);
         if (files.length > 0) {
@@ -669,6 +680,31 @@ export class SynchService implements vscode.Disposable {
             }
             return null
         }
+    }
+
+    private static async findMasterFileByMetaComment(
+        script: ParsedTempFile,
+        viewerFile: vscode.TextDocument
+    ) : Promise<vscode.Uri | null> {
+        const config =  ConfigService.getInstance()
+
+        if (!config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput, false)) return null;
+
+        const cmt = getLanguageConfig(script.language,config).lineCommentPrefix;
+
+        if(cmt.length < 1) return null;
+
+        const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`, "i");
+        const range = new vscode.Range(0, 0, 10, 0);
+        const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
+        if (start) {
+            const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
+            if (files.length == 1) {
+                console.log("Match on meta info", start);
+                return files[0];
+            }
+        }
+        return null;
     }
 
     private static async openMasterScript(

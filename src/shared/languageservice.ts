@@ -18,7 +18,7 @@ import { SelenePlugin, LuaLSPPlugin } from "../pluginsupport";
 import { ConfigService } from "../configservice";
 
 // TODO: migrate to ConfigInterface injection
-export type ScriptLanguage = "lsl" | "luau";
+export type ScriptLanguage = "lsl" | "luau" | "txt";
 
 //-----------------------------------------
 

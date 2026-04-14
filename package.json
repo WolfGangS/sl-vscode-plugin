@@ -105,6 +105,11 @@
             "type": "boolean",
             "default": false,
             "description": "Whether the current sl user info should be included in the meta info"
+          },
+          "slVscodeEdit.sync.notecardComment": {
+            "type": "string",
+            "default" : null,
+            "description": "String to use as a comment for notecards to allow syncing to external files of notecards with a file comment"
           }
         }
       },
