@@ -682,6 +682,58 @@ export class SynchService implements vscode.Disposable {
         }
     }
 
+    // Resolve file by checking actual paths, not searching with globs as, filenames may contain glob special characters
+    private static async resolveUriFromMetaFilePath(
+        pathPart: string,
+    ): Promise<vscode.Uri | null> {
+        const trimmed = pathPart.trim();
+        if (!trimmed) {
+            return null;
+        }
+
+        const isWindowsDrive = /^[a-zA-Z]:[\\/]/.test(trimmed);
+        const isAbs = path.isAbsolute(trimmed) || isWindowsDrive;
+
+        const tryUriInWorkspace = async (uri: vscode.Uri): Promise<vscode.Uri | null> => {
+            if (!vscode.workspace.getWorkspaceFolder(uri)) {
+                return null;
+            }
+            try {
+                const st = await vscode.workspace.fs.stat(uri);
+                if (st.type === vscode.FileType.File) {
+                    return uri;
+                }
+            } catch {
+                // Miss
+            }
+            return null;
+        };
+
+        if (isAbs) {
+            const uri = vscode.Uri.file(path.normalize(trimmed));
+            return tryUriInWorkspace(uri);
+        }
+
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders?.length) {
+            return null;
+        }
+        // Split path windows or unix style
+        const segments = trimmed
+            .replace(/\\/g, "/")
+            .split("/")
+            .filter((s) => s.length > 0);
+        for (const folder of folders) {
+            const joined = path.join(folder.uri.fsPath, ...segments);
+            const candidate = vscode.Uri.file(path.normalize(joined));
+            const hit = await tryUriInWorkspace(candidate);
+            if (hit) {
+                return hit;
+            }
+        }
+        return null;
+    }
+
     private static async findMasterFileByMetaComment(
         script: ParsedTempFile,
         viewerFile: vscode.TextDocument
@@ -694,14 +746,15 @@ export class SynchService implements vscode.Disposable {
 
         if(cmt.length < 1) return null;
 
-        const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`, "i");
+        const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]+.*$`, "i");
         const range = new vscode.Range(0, 0, 10, 0);
-        const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
+        const lines = viewerFile.getText(range).split("\n");
+        const start = lines.filter(line => line.match(lineRegExp))[0] ?? null;
         if (start) {
-            const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
-            if (files.length == 1) {
-                console.log("Match on meta info", start);
-                return files[0];
+            const pathPart = start.split("@file")[1]?.trim() ?? "";
+            const resolved = await SynchService.resolveUriFromMetaFilePath(pathPart);
+            if (resolved) {
+                return resolved;
             }
         }
         return null;
