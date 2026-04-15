@@ -746,8 +746,6 @@ export class SynchService implements vscode.Disposable {
     ) : Promise<vscode.Uri | null> {
         const config =  ConfigService.getInstance()
 
-        if (!config.getConfig<boolean>(ConfigKey.FileMetaInfoInOutput, false)) return null;
-
         const cmt = getLanguageConfig(script.language,config).lineCommentPrefix;
 
         if(cmt.length < 1) return null;
