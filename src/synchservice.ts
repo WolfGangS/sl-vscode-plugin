@@ -136,6 +136,12 @@ export class SynchService implements vscode.Disposable {
         this.disposables.push(onDidSaveListener);
         this.disposables.push(onDidChangeWindowState);
         this.disposables.push(onDidChangeActiveTextEditor);
+
+        const launchDoc = vscode.window.activeTextEditor?.document
+
+        if(launchDoc) {
+            this.onOpenTextDocument(launchDoc);
+        }
     }
 
     private async initializeSyntax(): Promise<void> {
