@@ -34,6 +34,7 @@ export enum ConfigKey {
   AskIfViewerScriptMismatchesMaster = 'sync.askIfViewerScriptMismatchesMaster',
   CompareHashBeforeSync = 'sync.compareHashBeforeSync',
   NotecardSyncComment = 'sync.notecardComment',
+  KeepViewerFileOpen = 'sync.keepViewerFileOpen',
 
   FileMetaInfoInOutput ='sync.includeFileMetaInOutput',
   FileMetaInfoIncludeCreator ='sync.includeCreatorInFileMeta',

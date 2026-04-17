@@ -28,6 +28,7 @@ import {
     closeEditor,
     logInfo,
     VSCodeHost,
+    closeTextDocument,
 } from "./utils";
 import { maybe } from "./shared/sharedutils"; // TODO: migrate needed utilities from sharedutils if required
 import { ScriptLanguage, LanguageService } from "./shared/languageservice";
@@ -36,6 +37,30 @@ import { getLanguageConfig } from "./shared/lexer";
 import { HostInterface } from "./interfaces/hostinterface";
 
 type ParsedTempFile = { scriptName: string; scriptId: string; extension: string, language: ScriptLanguage };
+
+class SyncedFileDecorator implements vscode.FileDecorationProvider {
+    private syncService: SynchService;
+    private _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
+    readonly onDidChangeFileDecorations = this._onDidChangeFileDecorations.event;
+
+    constructor(syncService:SynchService) {
+        this.syncService = syncService;
+    }
+
+    provideFileDecoration(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FileDecoration> {
+        if(this.syncService.findSyncByMasterFilePath(uri.fsPath)) {
+            return {
+                badge: '🔗',
+                tooltip: 'Synchronized with secondlife viewer',
+                color: new vscode.ThemeColor('tab.activeBorderTop'),
+            };
+        }
+    }
+
+    public refresh(uri?: vscode.Uri | vscode.Uri[]) : void {
+        this._onDidChangeFileDecorations.fire(uri);
+    }
+}
 
 export class SynchService implements vscode.Disposable {
     // Tracks all active sync relationships between temp files and master files
@@ -59,6 +84,7 @@ export class SynchService implements vscode.Disposable {
     public agentName?: string;
 
     private disposables: vscode.Disposable[] = [];
+    private fileDecorator?: SyncedFileDecorator;
 
     private constructor(context: vscode.ExtensionContext) {
         this.context = context;
@@ -139,9 +165,19 @@ export class SynchService implements vscode.Disposable {
 
         const launchDoc = vscode.window.activeTextEditor?.document
 
+
+        this.fileDecorator = new SyncedFileDecorator(this);
+        this.disposables.push(vscode.window.registerFileDecorationProvider(this.fileDecorator));
+
         if(launchDoc) {
             this.onOpenTextDocument(launchDoc);
         }
+
+        setInterval(()=>{
+            const eds = vscode.window.visibleTextEditors.map(te => te.document.uri.fsPath);
+            const open = vscode.workspace.textDocuments.map(td => td.uri.fsPath);
+            console.log("OPEN text docs", open);
+        },5000);
     }
 
     private async initializeSyntax(): Promise<void> {
@@ -197,12 +233,12 @@ export class SynchService implements vscode.Disposable {
             masterUri = viewerDocument.uri;
         }
 
-        const masterPath = masterUri.fsPath;
+        const masterPath = path.normalize(masterUri.fsPath);
         // Open the master script file in the editor
         showInfoMessage(`Opening master script: ${path.basename(masterPath)}`);
         let masterEditor = await SynchService.openMasterScript(masterUri);
         let masterDoc = masterEditor.document
-        SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, viewerDocument)
+        SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, viewerDocument);
 
         // Connection goes on in the background
         let viewerConnecting: Promise<boolean> = this.setupConnection();
@@ -223,31 +259,44 @@ export class SynchService implements vscode.Disposable {
             }
         });
 
-        let sync = this.findSyncByTempFilePath(viewerFilePath) ??
-            this.findSyncByMasterFilePath(masterPath);
-        if (sync) {
+        let masterSync = this.findSyncByMasterFilePath(masterPath);
+        let syncs = []
+
+        if(masterSync) {
+            syncs = [masterSync];
+        } else {
+            syncs = this.findSyncsByTempFilePath(viewerFilePath);
+            if(!this.host.config.getConfig(ConfigKey.KeepViewerFileOpen, true)) {
+                closeTextDocument(viewerDocument);
+            }
+        }
+
+        if (syncs.length) {
             // Already syncing the master, add another id and viewer file
-            sync.subscribe(parsed.scriptId, viewerDocument);
+            syncs.forEach(sync => sync.subscribe(parsed.scriptId, viewerDocument));
         } else {
             const config = ConfigService.getInstance();
-            sync = new ScriptSync(
+            const sync = new ScriptSync(
                 masterDoc,
                 parsed.extension as ScriptLanguage,
                 config,
                 parsed.scriptId,
                 viewerDocument,
-                this.host,
+                this,
             );
             await sync.initialize();
             this.activeSyncs.set(masterPath, sync);
+            syncs.push(sync);
         }
 
+        this.fileDecorator?.refresh(syncs.map(sync=>sync.getAllFileUris()).flat());
+
         if (this.websocket && this.websocket.isConnected()) {
-            this.sendSyncSubscription(sync);
+            syncs.forEach(sync => this.sendSyncSubscription(sync));
         } else {
             viewerConnecting.then((connected) => {
                 if (connected) {
-                    this.sendSyncSubscription(sync);
+                    syncs.forEach(sync => this.sendSyncSubscription(sync));
                 }
             });
         }
@@ -255,33 +304,34 @@ export class SynchService implements vscode.Disposable {
         return true;
     }
 
+    public getHost() {
+        return this.host;
+    }
+
     public removeSync(filePath: string, close: boolean): void {
         // seeing if we closed a temp file or a master file
-        let sync =
-            this.findSyncByTempFilePath(filePath) ??
-            this.findSyncByMasterFilePath(filePath);
-        if (!sync) {
-            // No sync found for this file, we are not tracking it
-            return;
-        }
-
-        if (sync.getMasterFilePath() !== filePath) {
+        const sync = this.findSyncByMasterFilePath(filePath);
+        console.error("REMOVE SYNC",filePath,[...this.activeSyncs.keys()],sync);
+        if (sync) {
             // We only destroy the sync if the master file is closed
             // This is so we can continue to handle preprocessor directives while editing.
             this.activeSyncs.delete(sync.getMasterFilePath());
+            this.fileDecorator?.refresh(sync.getAllFileUris());
             sync.dispose();
-        } else {
-            // This is not the master file, just remove the tracking links.
-            const parsed = SynchService.parseTempFile(filePath);
-            if (parsed) {
-                // Remove the tracking subscription, if there are no more tracked files we will dispose the sync
-                sync.unsubscribeById(parsed.scriptId);
-                if (close) {
-                    closeEditor(filePath);
-                }
-            }
         }
 
+        this.clearEmptySyncs();
+    }
+
+    public clearEmptySyncs() {
+        for(const [key,sync] of this.activeSyncs) {
+            if(!sync.hasFilesToTrack()) {
+                this.activeSyncs.delete(key);
+                console.error("Sync has no temp files, deleting");
+                this.fileDecorator?.refresh(sync.getAllFileUris())
+                sync.dispose();
+            }
+        }
         if (this.activeSyncs.size === 0) {
             // There is nothing being tracked, close the websocket connection
             if (this.websocket) {
@@ -625,11 +675,15 @@ export class SynchService implements vscode.Disposable {
         );
     }
 
-    public findSyncByTempFilePath(filePath: string): ScriptSync | undefined {
+    public findSyncsByTempFilePath(filePath: string): ScriptSync[]{
         filePath = path.normalize(filePath);
-        return [...this.activeSyncs.values()].find((sync) =>
-            sync.isTrackingFile(filePath),
-        );
+        const syncs : ScriptSync[] = [];
+        for(const [_,sync] of this.activeSyncs) {
+            if(sync.isTrackingFile(filePath)) {
+                syncs.push(sync);
+            }
+        }
+        return syncs;
     }
 
     public findSyncByMasterFilePath(
@@ -818,12 +872,19 @@ export class SynchService implements vscode.Disposable {
 
     private onCloseTextDocument(document: vscode.TextDocument): void {
         const filePath = path.normalize(document.fileName);
+        const uri = document.uri;
+        let fsPath = uri.fsPath;
+        if(uri.scheme == "git") {
+            fsPath = fsPath.replace(/^.*(\.git)$/,"")
+        }
+        console.log((new Date()).toISOString(),"Close Text document",filePath,fsPath);
         this.removeSync(filePath, false);
     }
 
     private onDeleteFiles(event: vscode.FileDeleteEvent): void {
         const uris = event.files;
         uris.forEach((uri) => {
+            console.log("Delete File", uri.fsPath);
             const filePath = path.normalize(uri.fsPath);
             this.removeSync(filePath, false);
         });
@@ -861,13 +922,13 @@ export class SynchService implements vscode.Disposable {
         // if the viewer launched it we will soon get a foucus event (onChangeWindowState)
         // Find the sync for this file, if any and then record the time.
         const filePath = path.normalize(editor.document.fileName);
-        const sync = this.findSyncByTempFilePath(filePath);
+        const sync = this.findSyncsByTempFilePath(filePath);
         if (sync) {
             // We have a sync for this file, record the time
             // We'll use this to see if a focus event happens very soon after
             // this event, if so we can assume the viewer launched us
             this.lastActiveChange = Date.now();
-            this.activeSync = sync;
+            this.activeSync = sync.pop();
         }
     }
     //#endregion

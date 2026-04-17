@@ -52,6 +52,7 @@ export class ScriptSync implements vscode.Disposable {
     private lineMappings?: LineMapping[];
     private config: ConfigService;
     private host: HostInterface;
+    private syncService: SynchService;
 
     private includedFiles : IncludeInfo[] = [];
 
@@ -60,9 +61,9 @@ export class ScriptSync implements vscode.Disposable {
         masterDocument: vscode.TextDocument,
         language: ScriptLanguage,
         config: ConfigService,
-        scriptId?: string,
-        viewerDocument?: vscode.TextDocument,
-        host?: HostInterface,
+        scriptId: string,
+        viewerDocument: vscode.TextDocument,
+        syncService: SynchService,
     ) {
         this.config = config;
 
@@ -71,7 +72,8 @@ export class ScriptSync implements vscode.Disposable {
         this.macros = new MacroProcessor();
         this.initializeSystemMacros(language);
 
-        this.host = host ?? new VSCodeHost();
+        this.syncService = syncService;
+        this.host = syncService.getHost() ?? new VSCodeHost();
 
         // Initialize preprocessor with macro processor
         const enabled = config.getConfig<boolean>(ConfigKey.PreprocessorEnable, true);
@@ -144,9 +146,14 @@ export class ScriptSync implements vscode.Disposable {
         const mapping = this.fileMappings.find((m) => m.id === id);
         if (mapping) {
             this.fileMappings = this.fileMappings.filter((m) => m !== mapping);
+            mapping.watcher?.dispose();
+            mapping.watcher = undefined;
             if (close) {
                 closeTextDocument(mapping.viewerDocument);
             }
+        }
+        if(this.fileMappings.length < 1) {
+            this.syncService.clearEmptySyncs();
         }
         return this.fileMappings.length;
     }
@@ -156,12 +163,7 @@ export class ScriptSync implements vscode.Disposable {
         const mapping = this.fileMappings.find(
             (m) => path.normalize(m.viewerDocument.fileName) === viewerFile,
         );
-        if (mapping) {
-            this.fileMappings = this.fileMappings.filter((m) => m !== mapping);
-            if (close) {
-                closeTextDocument(mapping.viewerDocument);
-            }
-        }
+        if (mapping) this.unsubscribeById(mapping.id);
         return this.fileMappings.length;
     }
 
@@ -178,6 +180,11 @@ export class ScriptSync implements vscode.Disposable {
         );
     }
 
+    public hasFilesToTrack() : boolean
+    {
+        return this.fileMappings.length > 0;
+    }
+
     public getMasterDocument(): vscode.TextDocument {
         return this.masterDocument;
     }
@@ -186,12 +193,24 @@ export class ScriptSync implements vscode.Disposable {
         return path.normalize(this.masterDocument.fileName);
     }
 
+    public getAllFileUris(): vscode.Uri[] {
+        return [
+            this.masterDocument.uri,
+            ...this.fileMappings.map(fm => fm.viewerDocument.uri),
+        ];
+    }
+
     public getLanguage(): string {
         return this.language;
     }
 
     public getTrackedIds(): string[] {
         return this.fileMappings.map((mapping) => mapping.id);
+    }
+
+    public getTrackedDocuments(): TrackedDocument[]
+    {
+        return this.fileMappings;
     }
     //#endregion
 
@@ -585,6 +604,9 @@ export class ScriptSync implements vscode.Disposable {
 
         try {
             this.diagnosticCollection.dispose();
+            for(const map of this.fileMappings) {
+                map.watcher?.dispose();
+            }
         } catch (error) {
             // Log but don't throw during disposal
             console.warn("Error during ScriptSync disposal:", error);
