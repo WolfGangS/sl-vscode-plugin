@@ -199,7 +199,9 @@ export class SynchService implements vscode.Disposable {
 
         // Look for a file in the workspace with the same name as the master script
         let masterUri = await SynchService.findMasterFile(parsed, viewerDocument);
+        let masterFound = true;
         if (!masterUri) {
+            masterFound = false;
             // There was no master file found, we are our own master
             showInfoMessage(
                 `No master script found for: ${parsed.scriptName}.${parsed.extension}`,
@@ -242,7 +244,7 @@ export class SynchService implements vscode.Disposable {
             syncs.push(...this.findSyncsByTempFilePath(viewerFilePath));
         }
 
-        if(!this.host.config.getConfig(ConfigKey.KeepViewerFileOpen, true)) {
+        if(!this.host.config.getConfig(ConfigKey.KeepViewerFileOpen, true) && masterFound) {
             closeTextDocument(viewerDocument);
         }
 
