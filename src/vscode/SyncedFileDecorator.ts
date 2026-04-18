@@ -19,7 +19,7 @@ export class SyncedFileDecorator implements FileDecorationProvider {
         this.syncService = syncService;
     }
 
-    provideFileDecoration(uri: Uri, token: CancellationToken): ProviderResult<FileDecoration> {
+    provideFileDecoration(uri: Uri, _token: CancellationToken): ProviderResult<FileDecoration> {
         if(this.syncService.findSyncByMasterFilePath(uri.fsPath)) {
             return {
                 badge: '🔗',

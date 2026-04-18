@@ -63,7 +63,7 @@ export function deactivate(): void {
     synchService.deactivate();
 }
 
-function setupCommands(context: vscode.ExtensionContext) {
+function setupCommands(context: vscode.ExtensionContext) : void {
     // Register commands
     context.subscriptions.push(
         vscode.commands.registerCommand(
@@ -129,7 +129,7 @@ function setupCommands(context: vscode.ExtensionContext) {
                 if(!uri) {
                     return;
                 }
-                SynchService.getInstance().removeSync(path.normalize(uri.fsPath), false);
+                SynchService.getInstance().removeSync(path.normalize(uri.fsPath));
             }
         )
     );

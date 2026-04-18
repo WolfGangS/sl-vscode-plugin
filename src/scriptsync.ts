@@ -25,7 +25,7 @@ import {
 } from "./utils";
 import { ScriptLanguage } from "./shared/languageservice";
 import { CompilationResult, RuntimeDebug, RuntimeError } from "./viewereditwsclient";
-import { HostInterface, normalizePath } from "./interfaces/hostinterface";
+import { normalizePath } from "./interfaces/hostinterface";
 import { SynchService } from "./synchservice";
 import { IncludeInfo } from "./shared/parser";
 import { sha256 } from "js-sha256";

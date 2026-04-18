@@ -25,7 +25,6 @@ import {
     showInfoMessage,
     showStatusMessage,
     showWarningMessage,
-    closeEditor,
     logInfo,
     VSCodeHost,
     closeTextDocument,
@@ -283,7 +282,7 @@ export class SynchService implements vscode.Disposable {
         return true;
     }
 
-    public removeSync(filePath: string, close: boolean): void {
+    public removeSync(filePath: string): void {
         // seeing if we closed a temp file or a master file
         let sync = this.findSyncByMasterFilePath(filePath);
         if (!sync) {
@@ -298,7 +297,7 @@ export class SynchService implements vscode.Disposable {
         this.clearEmptySyncs();
     }
 
-    public clearEmptySyncs() {
+    public clearEmptySyncs() : void {
         for(const [key,sync] of this.activeSyncs) {
             if(!sync.hasFilesToTrack()) {
                 this.activeSyncs.delete(key);
@@ -767,7 +766,7 @@ export class SynchService implements vscode.Disposable {
         const uris = event.files;
         uris.forEach((uri) => {
             const filePath = path.normalize(uri.fsPath);
-            this.removeSync(filePath, false);
+            this.removeSync(filePath);
         });
     }
 
