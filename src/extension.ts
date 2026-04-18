@@ -16,6 +16,7 @@ import {
     showErrorMessage
 } from "./utils";
 import { ConfigKey } from "./interfaces/configinterface";
+import path from "path";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -34,7 +35,35 @@ export function activate(context: vscode.ExtensionContext): void {
         showErrorMessage("Second Life Scripting Extension: No workspace is opened.\nPlease open a folder in VSCode to enable full functionality.");
     }
 
+    setupCommands(context);
 
+    configService.on(ConfigKey.Enabled, (configService) => {
+        if(configService.isEnabled()) {
+            synchService.activate();
+            logInfo("Second Life Scripting Extension activated");
+        } else {
+            synchService.deactivate();
+            logInfo("Second Life Scripting Extension deactivated");
+        }
+    });
+
+    if(configService.isEnabled()) {
+        synchService.activate();
+        logInfo("Second Life Scripting Extension activated");
+    }
+
+    context.subscriptions.push(configService);
+    context.subscriptions.push(languageService);
+    context.subscriptions.push(synchService);
+}
+
+// This method is called when your extension is deactivated
+export function deactivate(): void {
+    const synchService = SynchService.getInstance();
+    synchService.deactivate();
+}
+
+function setupCommands(context: vscode.ExtensionContext) {
     // Register commands
     context.subscriptions.push(
         vscode.commands.registerCommand(
@@ -89,28 +118,19 @@ export function activate(context: vscode.ExtensionContext): void {
         )
     );
 
-    configService.on(ConfigKey.Enabled, (configService) => {
-        if(configService.isEnabled()) {
-            synchService.activate();
-            logInfo("Second Life Scripting Extension activated");
-        } else {
-            synchService.deactivate();
-            logInfo("Second Life Scripting Extension deactivated");
-        }
-    });
-
-    if(configService.isEnabled()) {
-        synchService.activate();
-        logInfo("Second Life Scripting Extension activated");
-    }
-
-    context.subscriptions.push(configService);
-    context.subscriptions.push(languageService);
-    context.subscriptions.push(synchService);
-}
-
-// This method is called when your extension is deactivated
-export function deactivate(): void {
-    const synchService = SynchService.getInstance();
-    synchService.deactivate();
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            "second-life-scripting.stopFileSync",
+            (uri?: vscode.Uri) => {
+                console.error("CLOSE SYNC COMMAND", uri);
+                if(!uri) {
+                    uri = vscode.window.activeTextEditor?.document.uri;
+                }
+                if(!uri) {
+                    return;
+                }
+                SynchService.getInstance().removeSync(path.normalize(uri.fsPath), false);
+            }
+        )
+    );
 }

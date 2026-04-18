@@ -28,12 +28,14 @@ import {
     closeEditor,
     logInfo,
     VSCodeHost,
+    closeTextDocument,
 } from "./utils";
 import { maybe } from "./shared/sharedutils"; // TODO: migrate needed utilities from sharedutils if required
 import { ScriptLanguage, LanguageService } from "./shared/languageservice";
 import { ScriptSync } from "./scriptsync";
 import { getLanguageConfig } from "./shared/lexer";
 import { HostInterface } from "./interfaces/hostinterface";
+import { SyncedFileDecorator } from "./vscode/SyncedFileDecorator";
 
 type ParsedTempFile = { scriptName: string; scriptId: string; extension: string, language: ScriptLanguage };
 
@@ -58,11 +60,14 @@ export class SynchService implements vscode.Disposable {
     public agentId?: string;
     public agentName?: string;
 
+    private syncedFileDecorator : SyncedFileDecorator;
+
     private disposables: vscode.Disposable[] = [];
 
     private constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.host = new VSCodeHost();
+        this.syncedFileDecorator = new SyncedFileDecorator(this);
     }
 
     public static getInstance(context?: vscode.ExtensionContext): SynchService {
@@ -93,19 +98,28 @@ export class SynchService implements vscode.Disposable {
         this.disposables = [];
     }
 
+    public getHost() : HostInterface
+    {
+        return this.host;
+    }
+
     public initialize(): void {
 
         const onDidOpenListener = vscode.workspace.onDidOpenTextDocument(
             async (document) => this.onOpenTextDocument(document),
         );
 
-        const onDidCloseListener = vscode.workspace.onDidCloseTextDocument(
-            (document: vscode.TextDocument) => this.onCloseTextDocument(document),
-        );
+        // const onDidCloseListener = vscode.workspace.onDidCloseTextDocument(
+        //     (document: vscode.TextDocument) => this.onCloseTextDocument(document),
+        // );
 
         const onDidDeleteListener = vscode.workspace.onDidDeleteFiles(
             (event: vscode.FileDeleteEvent) => this.onDeleteFiles(event),
         );
+
+        const onDidCloseWorkspace = vscode.workspace.onDidChangeWorkspaceFolders((e) => {
+            e.removed.forEach(folder => this.onCloseWorkspace(folder));
+        });
 
         const onDidSaveListener = vscode.workspace.onDidSaveTextDocument(
             (document: vscode.TextDocument) => this.onSaveTextDocument(document),
@@ -131,11 +145,13 @@ export class SynchService implements vscode.Disposable {
         // showStatusMessage("Initializing syntax...", syntaxInit);
 
         this.disposables.push(onDidOpenListener);
-        this.disposables.push(onDidCloseListener);
+        // this.disposables.push(onDidCloseListener);
+        this.disposables.push(onDidCloseWorkspace);
         this.disposables.push(onDidDeleteListener);
         this.disposables.push(onDidSaveListener);
         this.disposables.push(onDidChangeWindowState);
         this.disposables.push(onDidChangeActiveTextEditor);
+        this.disposables.push(vscode.window.registerFileDecorationProvider(this.syncedFileDecorator));
     }
 
     private async initializeSyntax(): Promise<void> {
@@ -165,7 +181,7 @@ export class SynchService implements vscode.Disposable {
     private async setupSync(
         viewerDocument: vscode.TextDocument,
     ): Promise<boolean> {
-        const viewerFilePath = path.normalize(viewerDocument.fileName);
+        const viewerFilePath = path.normalize(viewerDocument.uri.fsPath);
         const openedBase = path.basename(viewerFilePath);
 
         if (!hasWorkspace()) {
@@ -196,7 +212,7 @@ export class SynchService implements vscode.Disposable {
         showInfoMessage(`Opening master script: ${path.basename(masterPath)}`);
         let masterEditor = await SynchService.openMasterScript(masterUri);
         let masterDoc = masterEditor.document
-        SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, viewerDocument)
+        SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, viewerDocument);
 
         // Connection goes on in the background
         let viewerConnecting: Promise<boolean> = this.setupConnection();
@@ -217,62 +233,75 @@ export class SynchService implements vscode.Disposable {
             }
         });
 
-        let sync = this.findSyncByTempFilePath(viewerFilePath) ??
-            this.findSyncByMasterFilePath(masterPath);
-        if (sync) {
+        const masterSync = this.findSyncByMasterFilePath(masterPath);
+        const syncs : ScriptSync[] = [];
+
+        if(masterSync) {
+            syncs.push(masterSync);
+        } else {
+            syncs.push(...this.findSyncsByTempFilePath(viewerFilePath));
+        }
+
+        if(!this.host.config.getConfig(ConfigKey.KeepViewerFileOpen, true)) {
+            closeTextDocument(viewerDocument);
+        }
+
+        if(syncs.length) {
             // Already syncing the master, add another id and viewer file
-            sync.subscribe(parsed.scriptId, viewerDocument);
+            syncs.forEach(sync => sync.subscribe(parsed.scriptId, viewerDocument));
         } else {
             const config = ConfigService.getInstance();
-            sync = new ScriptSync(
+            const sync = new ScriptSync(
                 masterDoc,
                 parsed.extension as ScriptLanguage,
                 config,
                 parsed.scriptId,
                 viewerDocument,
-                this.host,
+                this,
             );
             await sync.initialize();
             this.activeSyncs.set(masterPath, sync);
+            syncs.push(sync);
         }
 
+        syncs.forEach(sync => this.syncedFileDecorator.refresh(sync.getMasterDocument().uri));
+
         if (this.websocket && this.websocket.isConnected()) {
-            this.sendSyncSubscription(sync);
+            syncs.forEach(sync => this.sendSyncSubscription(sync));
         } else {
             viewerConnecting.then((connected) => {
                 if (connected) {
-                    this.sendSyncSubscription(sync);
+                    syncs.forEach(sync=>this.sendSyncSubscription(sync));
                 }
             });
         }
+
+        this.clearEmptySyncs();
 
         return true;
     }
 
     public removeSync(filePath: string, close: boolean): void {
         // seeing if we closed a temp file or a master file
-        let sync =
-            this.findSyncByTempFilePath(filePath) ??
-            this.findSyncByMasterFilePath(filePath);
+        let sync = this.findSyncByMasterFilePath(filePath);
         if (!sync) {
             // No sync found for this file, we are not tracking it
             return;
         }
 
-        if (sync.getMasterFilePath() !== filePath) {
-            // We only destroy the sync if the master file is closed
-            // This is so we can continue to handle preprocessor directives while editing.
-            this.activeSyncs.delete(sync.getMasterFilePath());
-            sync.dispose();
-        } else {
-            // This is not the master file, just remove the tracking links.
-            const parsed = SynchService.parseTempFile(filePath);
-            if (parsed) {
-                // Remove the tracking subscription, if there are no more tracked files we will dispose the sync
-                sync.unsubscribeById(parsed.scriptId);
-                if (close) {
-                    closeEditor(filePath);
-                }
+        this.activeSyncs.delete(sync.getMasterFilePath());
+        this.syncedFileDecorator.refresh(sync.getMasterDocument().uri);
+        sync.dispose();
+
+        this.clearEmptySyncs();
+    }
+
+    public clearEmptySyncs() {
+        for(const [key,sync] of this.activeSyncs) {
+            if(!sync.hasFilesToTrack()) {
+                this.activeSyncs.delete(key);
+                this.syncedFileDecorator.refresh(sync.getMasterDocument().uri);
+                sync.dispose();
             }
         }
 
@@ -286,6 +315,11 @@ export class SynchService implements vscode.Disposable {
                 this.websocket = undefined;
             }
         }
+        vscode.commands.executeCommand(
+            "setContext",
+            "slVscodeEdit:syncsActive",
+            this.activeSyncs.size > 0
+        );
     }
 
     //====================================================================
@@ -597,9 +631,9 @@ export class SynchService implements vscode.Disposable {
         );
     }
 
-    public findSyncByTempFilePath(filePath: string): ScriptSync | undefined {
+    public findSyncsByTempFilePath(filePath: string): ScriptSync[] {
         filePath = path.normalize(filePath);
-        return [...this.activeSyncs.values()].find((sync) =>
+        return [...this.activeSyncs.values()].filter((sync) =>
             sync.isTrackingFile(filePath),
         );
     }
@@ -723,9 +757,8 @@ export class SynchService implements vscode.Disposable {
         this.initializeSyntax();
     }
 
-    private onCloseTextDocument(document: vscode.TextDocument): void {
-        const filePath = path.normalize(document.fileName);
-        this.removeSync(filePath, false);
+    private onCloseWorkspace(workspace: vscode.WorkspaceFolder) : void {
+        console.error("WORKSPACE CLOSE",workspace.name,workspace.uri.fsPath);
     }
 
     private onDeleteFiles(event: vscode.FileDeleteEvent): void {
@@ -768,13 +801,13 @@ export class SynchService implements vscode.Disposable {
         // if the viewer launched it we will soon get a foucus event (onChangeWindowState)
         // Find the sync for this file, if any and then record the time.
         const filePath = path.normalize(editor.document.fileName);
-        const sync = this.findSyncByTempFilePath(filePath);
-        if (sync) {
+        const syncs = this.findSyncsByTempFilePath(filePath);
+        if (syncs.length) {
             // We have a sync for this file, record the time
             // We'll use this to see if a focus event happens very soon after
             // this event, if so we can assume the viewer launched us
             this.lastActiveChange = Date.now();
-            this.activeSync = sync;
+            this.activeSync = syncs.pop();
         }
     }
     //#endregion
