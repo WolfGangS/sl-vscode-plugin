@@ -1,13 +1,13 @@
 repos:
-  # TypeScript compilation check
+  # Repository validation checks
   - repo: local
     hooks:
-      - id: typescript-compile
-        name: TypeScript Compile Check
-        entry: npm run compile
+      - id: npm-precommit
+        name: Repository Precommit Check
+        entry: npm run precommit
         language: system
-        files: \.(ts|tsx)$
         pass_filenames: false
+        always_run: true
 
   # Pre-commit hooks for general file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

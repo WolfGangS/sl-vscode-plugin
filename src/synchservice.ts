@@ -295,7 +295,7 @@ export class SynchService implements vscode.Disposable {
             onHandshake: (message: SessionHandshake): any => this.onHandshake(message),
             onHandshakeOk: (): any => this.onHandshakeOk(),
             onDisconnect: (message: SessionDisconnect): any => this.onDisconnect(message),
-            onScriptUnsubscribe: (message: ScriptUnsubscribe): any =>
+            onUnsubscribe: (message: ScriptUnsubscribe): any =>
                 this.onScriptUnsubscribe(message),
             onSyntaxChange: (message: SyntaxChange): any => this.onSyntaxChange(message),
             onCompilationResult: (message: CompilationResult): any => this.onCompilationResult(message),
@@ -359,11 +359,17 @@ export class SynchService implements vscode.Disposable {
             });
         }
 
+        const firstSync = this.activeSync ?? [...this.activeSyncs.values()][0];
+        const scriptName = firstSync ? path.basename(firstSync.getMasterFilePath()) : undefined;
+        const scriptLanguage = firstSync ? firstSync.getLanguage() : undefined;
+
         const response: SessionHandshakeResponse = {
             client_name: ConfigService.getInstance().getConfig<string>(ConfigKey.ClientName) || "sl-vscode-plugin",
             client_version: "1.0",
             protocol_version: "1.0",
             ...maybe("challenge_response", challengeResponse),
+            ...maybe("script_name", scriptName),
+            ...maybe("script_language", scriptLanguage),
             languages: ["lsl", "luau"],
             features: {
                 live_sync: true,
