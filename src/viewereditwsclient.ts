@@ -62,6 +62,22 @@ export interface SyntaxChange {
     id: string;
 }
 
+export interface SyntaxCacheList {
+    files: string[];
+    success: boolean;
+}
+
+export interface SyntaxCacheGetRequest {
+    filename: string;
+    as_json?: boolean;
+}
+
+export interface SyntaxCacheFile {
+    content?: string | object;
+    success: boolean;
+    error?: string;
+}
+
 export interface CompilationError {
     row: number;
     column: number;

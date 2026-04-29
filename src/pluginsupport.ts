@@ -82,6 +82,32 @@ export class SelenePlugin extends BasePlugin {
         return true;
     }
 
+    public async configureFromViewerCache(
+        version: any,
+        viewerSeleneYml: string,
+    ): Promise<boolean> {
+        if (!SelenePlugin.isEnabledHost(this.host)) {
+            console.warn("Selene plugin not active - skipping configuration");
+            return false;
+        }
+
+        const basename = `slua_${version}`;
+        const configPath = await this.host.config.getWorkspaceConfigPath();
+
+        const saved = await SelenePlugin.saveSLuaSeleneConfig(
+            configPath,
+            basename + `.yml`,
+            viewerSeleneYml,
+            this.host,
+        );
+
+        if (saved) {
+            await SelenePlugin.updateSeleneConfig(configPath, basename, this.host);
+        }
+
+        return saved;
+    }
+
     private buildSeleneConfig(version: any, defs: LuaTypeDefinitions): string {
         const generator = new SeleneYamlGenerator();
         const config = {
@@ -262,6 +288,35 @@ export class LuaLSPPlugin extends BasePlugin {
             await vscode.workspace.fs.writeFile(vscode.Uri.file(fullPath), Buffer.from(docs, "utf8"));
         }
         return fullPath;
+    }
+
+    public async configureFromViewerCache(
+        version: any,
+        viewerDLuau: string,
+        viewerDocsJson: string,
+    ): Promise<boolean> {
+        const configPath = await this.host.config.getWorkspaceConfigPath();
+
+        const defsFiles: { [k: string]: string } = {};
+
+        defsFiles["sl-slua"] = await this.saveLuauLSPDefs(
+            configPath,
+            version,
+            viewerDLuau,
+        );
+
+        if (this.host.config.getConfig(ConfigKey.PreprocessorConstantsInSLua, false)) {
+            defsFiles["sl-slua-consts"] = await this.saveLuauLSPConstantDefs(configPath);
+        }
+
+        const docsFileName = await this.saveLuauLSPDocs(
+            configPath,
+            version,
+            viewerDocsJson,
+        );
+
+        await this.restartLuauLSP(defsFiles, docsFileName, this.host);
+        return true;
     }
 
     public buildLuauLSPConfig(

@@ -5,6 +5,7 @@
 import { HostInterface, NormalizedPath, normalizeJoinPath } from '../interfaces/hostinterface';
 import { LanguageTransformer } from './languagetransformer';
 import { JSONRPCInterface } from '../websockclient';
+import { SyntaxCacheFile, SyntaxCacheGetRequest, SyntaxCacheList } from '../viewereditwsclient';
 import { LSLKeywords } from "./lslkeywords";
 import { LuaTypeDefinitions } from "./luadefsinterface";
 import { sortObjectKeysRecursive } from '../utils';
@@ -18,9 +19,12 @@ export interface LanguageInfo {
 export interface FetchOptions {
     force?: boolean; // bypass cache when true
     socket?: JSONRPCInterface; // viewer connection for remote fetch
+    syntaxCacheSupported?: boolean;
 }
 
 export class LanguageRepository {
+    public syntaxCacheFiles: string[] = [];
+
     constructor(private readonly host: HostInterface) {}
 
     public async getSyntax(version: string, opts: FetchOptions = {}): Promise<LanguageInfo | null> {
@@ -110,6 +114,44 @@ export class LanguageRepository {
             return result['id'];
         } catch (error) {
             console.error('Error calling language.syntax.id:', error);
+            return null;
+        }
+    }
+
+    public async requestSyntaxCacheList(socket: JSONRPCInterface): Promise<string[] | null> {
+        try {
+            const result = await socket.call('language.syntax.cache') as SyntaxCacheList;
+            if (result && result.success === true && Array.isArray(result.files)) {
+                this.syntaxCacheFiles = result.files;
+                return this.syntaxCacheFiles;
+            }
+            this.syntaxCacheFiles = [];
+            return null;
+        } catch (error) {
+            console.error('Error calling language.syntax.cache:', error);
+            this.syntaxCacheFiles = [];
+            return null;
+        }
+    }
+
+    public async requestSyntaxCacheFile(
+        socket: JSONRPCInterface,
+        filename: string,
+        asJson?: boolean,
+    ): Promise<string | object | null> {
+        const params: SyntaxCacheGetRequest = {
+            filename,
+            ...(asJson !== undefined ? { as_json: asJson } : {}),
+        };
+
+        try {
+            const result = await socket.call('language.syntax.get', params) as SyntaxCacheFile;
+            if (result && result.success === true && result.content !== undefined) {
+                return result.content;
+            }
+            return null;
+        } catch (error) {
+            console.error(`Error calling language.syntax.get for ${filename}:`, error);
             return null;
         }
     }
