@@ -8,7 +8,7 @@ import {
     ThemeColor
 } from "vscode";
 
-import { SynchService } from "../synchservice";
+import type { SynchService } from "../synchservice";
 
 export class SyncedFileDecorator implements FileDecorationProvider {
     private syncService: SynchService;
