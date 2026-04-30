@@ -24,7 +24,7 @@ export class SyncedFileDecorator implements FileDecorationProvider {
             return {
                 badge: '🔗',
                 tooltip: 'Synchronized with secondlife viewer',
-                color: new ThemeColor('tab.activeBorderTop'),
+                color: new ThemeColor('secondlife.syncedfile'),
             };
         }
     }
