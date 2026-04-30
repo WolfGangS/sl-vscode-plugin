@@ -542,7 +542,15 @@ export class JSONRPCClient extends WebsockClient implements JSONRPCInterface {
         const handler = this.methodHandlers.get(notification.method);
         if (handler) {
             try {
-                handler(notification.params);
+                const result = handler(notification.params);
+                if (result && typeof (result as PromiseLike<unknown>).then === "function") {
+                    Promise.resolve(result).catch((error) => {
+                        console.error(
+                            `Error in async notification handler for ${notification.method}:`,
+                            error,
+                        );
+                    });
+                }
             } catch (error) {
                 console.error(
                     `Error in notification handler for ${notification.method}:`,

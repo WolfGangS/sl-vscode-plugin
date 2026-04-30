@@ -106,9 +106,21 @@ export class LanguageService implements DisposableLike {
     }
 
     //#region Language Info Fetching
-    public async changeSyntaxVersion(syntaxId: string,
-        socket?: JSONRPCInterface, force?: boolean): Promise<boolean> {
-        const syntax = await this.repository.getSyntax(syntaxId, { force, socket });
+    public async changeSyntaxVersion(
+        syntaxId: string,
+        socket?: JSONRPCInterface,
+        force?: boolean,
+        syntaxCacheSupported?: boolean,
+    ): Promise<boolean> {
+        if (syntaxCacheSupported && socket) {
+            return await this.configureSyntaxFromViewerCache(syntaxId, socket);
+        }
+
+        const syntax = await this.repository.getSyntax(syntaxId, {
+            force,
+            socket,
+            syntaxCacheSupported,
+        });
 
         if (!syntax) {
             console.warn(`No language syntax found for version ${syntaxId}`);
@@ -134,8 +146,58 @@ export class LanguageService implements DisposableLike {
         return true;
     }
 
+    private async configureSyntaxFromViewerCache(
+        syntaxId: string,
+        socket: JSONRPCInterface,
+    ): Promise<boolean> {
+        const cacheFiles = this.repository.syntaxCacheFiles;
+
+        const selene = new SelenePlugin(this.host);
+        if (cacheFiles.includes("slua_selene.yml")) {
+            const content = await this.repository.requestSyntaxCacheFile(socket, "slua_selene.yml");
+            if (typeof content === "string") {
+                await selene.configureFromViewerCache(syntaxId, content);
+            } else {
+                console.warn("syntax_cache: slua_selene.yml missing or invalid, skipping Selene configuration");
+            }
+        } else {
+            console.warn("syntax_cache: slua_selene.yml not in viewer cache, skipping Selene configuration");
+        }
+
+        const luauLSP = new LuaLSPPlugin(this.host);
+        const hasDLuau = cacheFiles.includes("slua_default.d.luau");
+        const hasDocs = cacheFiles.includes("slua_default.docs.json");
+        if (hasDLuau && hasDocs) {
+            const dLuau = await this.repository.requestSyntaxCacheFile(socket, "slua_default.d.luau");
+            const docs = await this.repository.requestSyntaxCacheFile(socket, "slua_default.docs.json");
+            if (typeof dLuau === "string" && typeof docs === "string") {
+                await luauLSP.configureFromViewerCache(syntaxId, dLuau, docs);
+            } else {
+                console.warn("syntax_cache: slua_default.d.luau or slua_default.docs.json missing or invalid, skipping Luau-LSP configuration");
+            }
+        } else {
+            console.warn("syntax_cache: Luau-LSP files not in viewer cache, skipping Luau-LSP configuration");
+        }
+
+        this.languageVersion = syntaxId;
+        await ConfigService.getInstance().setConfig<string>(ConfigKey.LastSyntaxID, syntaxId, { target: "global" });
+        return true;
+    }
+
     public async requestSyntaxId(socket: JSONRPCInterface): Promise<string | null> {
         return await this.repository.requestLanguageSyntaxId(socket);
+    }
+
+    public async requestSyntaxCacheList(socket: JSONRPCInterface): Promise<string[] | null> {
+        return await this.repository.requestSyntaxCacheList(socket);
+    }
+
+    public async requestSyntaxCacheFile(
+        socket: JSONRPCInterface,
+        filename: string,
+        asJson?: boolean,
+    ): Promise<string | object | null> {
+        return await this.repository.requestSyntaxCacheFile(socket, filename, asJson);
     }
     //#endregion
 

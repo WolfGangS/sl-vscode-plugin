@@ -55,6 +55,7 @@ export class SynchService implements vscode.Disposable {
     public viewerVersion?: string;
     public viewerLanguages?: string[];
     public viewerFeatures?: { [feature: string]: boolean };
+    public syntaxCacheSupported: boolean = false;
     public syntaxId?: string;
     public agentId?: string;
     public agentName?: string;
@@ -341,7 +342,7 @@ export class SynchService implements vscode.Disposable {
             onHandshake: (message: SessionHandshake): any => this.onHandshake(message),
             onHandshakeOk: (): any => this.onHandshakeOk(),
             onDisconnect: (message: SessionDisconnect): any => this.onDisconnect(message),
-            onScriptUnsubscribe: (message: ScriptUnsubscribe): any =>
+            onUnsubscribe: (message: ScriptUnsubscribe): any =>
                 this.onScriptUnsubscribe(message),
             onSyntaxChange: (message: SyntaxChange): any => this.onSyntaxChange(message),
             onCompilationResult: (message: CompilationResult): any => this.onCompilationResult(message),
@@ -394,6 +395,7 @@ export class SynchService implements vscode.Disposable {
         this.viewerLanguages = message.languages;
         this.syntaxId = message.syntax_id;
         this.viewerFeatures = message.features;
+        this.syntaxCacheSupported = message.features?.["syntax_cache"] === true;
 
         let challengeResponse: string | undefined = undefined;
         if (message.challenge) {
@@ -405,11 +407,17 @@ export class SynchService implements vscode.Disposable {
             });
         }
 
+        const firstSync = this.activeSync ?? [...this.activeSyncs.values()][0];
+        const scriptName = firstSync ? path.basename(firstSync.getMasterFilePath()) : undefined;
+        const scriptLanguage = firstSync ? firstSync.getLanguage() : undefined;
+
         const response: SessionHandshakeResponse = {
             client_name: ConfigService.getInstance().getConfig<string>(ConfigKey.ClientName) || "sl-vscode-plugin",
             client_version: "1.0",
             protocol_version: "1.0",
             ...maybe("challenge_response", challengeResponse),
+            ...maybe("script_name", scriptName),
+            ...maybe("script_language", scriptLanguage),
             languages: ["lsl", "luau"],
             features: {
                 live_sync: true,
@@ -421,7 +429,7 @@ export class SynchService implements vscode.Disposable {
         return response;
     }
 
-    private onHandshakeOk(): void {
+    private async onHandshakeOk(): Promise<void> {
         // Session established successfully
         console.log(
             `Session established with viewer ${this.viewerName} v${this.viewerVersion}`,
@@ -431,10 +439,16 @@ export class SynchService implements vscode.Disposable {
         );
 
         const service = LanguageService.getInstance();
+        await this.refreshSyntaxCacheListIfSupported(service);
         if (!this.checkLanguageVersion()) {
             const socket = this.getWebSocket();
             if (socket && this.syntaxId) {
-                const promise = service.changeSyntaxVersion(this.syntaxId, socket);
+                const promise = service.changeSyntaxVersion(
+                    this.syntaxId,
+                    socket,
+                    false,
+                    this.syntaxCacheSupported,
+                );
                 showStatusMessage("Updating to latest language definitions...", promise);
             }
         }
@@ -470,18 +484,37 @@ export class SynchService implements vscode.Disposable {
         }
     }
 
-    private onSyntaxChange(params: SyntaxChange): void {
+    private async onSyntaxChange(params: SyntaxChange): Promise<void> {
         if (this.syntaxId !== params.id) {
             this.syntaxId = params.id;
+            const service = LanguageService.getInstance();
+            await this.refreshSyntaxCacheListIfSupported(service);
             if (!this.checkLanguageVersion()) {
-                const service = LanguageService.getInstance();
                 const socket = this.getWebSocket();
                 if (socket) {
-                    const promise = service.changeSyntaxVersion(params.id, socket);
+                    const promise = service.changeSyntaxVersion(
+                        params.id,
+                        socket,
+                        false,
+                        this.syntaxCacheSupported,
+                    );
                     showStatusMessage("Updating to latest language definitions...", promise);
                 }
             }
         }
+    }
+
+    private async refreshSyntaxCacheListIfSupported(service: LanguageService): Promise<void> {
+        if (!this.syntaxCacheSupported) {
+            return;
+        }
+
+        const socket = this.getWebSocket();
+        if (!socket) {
+            return;
+        }
+
+        await service.requestSyntaxCacheList(socket);
     }
 
     private onCompilationResult(message: CompilationResult): void {

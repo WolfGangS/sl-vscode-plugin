@@ -30,6 +30,8 @@ export interface SessionHandshakeResponse {
     languages: string[];
     features: { [feature: string]: boolean };
     challenge_response?: string;
+    script_name?: string;
+    script_language?: string;
 }
 
 export interface SessionDisconnect {
@@ -47,6 +49,8 @@ export interface ScriptSubscribeResponse {
     script_id: string;
     success: boolean;
     status: number;
+    object_id?: string;
+    item_id?: string;
     message?: string;
 }
 
@@ -58,11 +62,28 @@ export interface SyntaxChange {
     id: string;
 }
 
+export interface SyntaxCacheList {
+    files: string[];
+    success: boolean;
+}
+
+export interface SyntaxCacheGetRequest {
+    filename: string;
+    as_json?: boolean;
+}
+
+export interface SyntaxCacheFile {
+    content?: string | object;
+    success: boolean;
+    error?: string;
+}
+
 export interface CompilationError {
     row: number;
     column: number;
     level: string;
     message: string;
+    format?: "lsl";
 }
 
 export interface CompilationResult {
