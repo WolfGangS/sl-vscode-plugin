@@ -9,6 +9,7 @@
 import { ScriptLanguage } from "./languageservice";
 import { NormalizedPath } from "../interfaces/hostinterface";
 import { DiagnosticCollector, ErrorCodes } from "./diagnostics";
+import { ConfigKey, FullConfigInterface } from "../interfaces/configinterface";
 
 //#region Language Configuration
 
@@ -60,98 +61,114 @@ export interface LanguageLexerConfig extends BaseLanguageLexerConfig {
 
 /**
  * Predefined language configurations
- */
-const LANGUAGE_CONFIGS: Record<ScriptLanguage, LanguageLexerConfig> = {
-    lsl: {
-        name: "lsl",
-        lineCommentPrefix: "//",
-        blockCommentDelimiters: [
-            ["/*","*/"]
-        ],
-        logicalOperators: {
-            and: "&&",
-            or: "||",
-            not: "!"
-        },
-        useLongBracketSyntax: false,
-        supportsVectorLiterals: true,
-        directivePrefix: "#",
-        directiveKeywords: ["defined"],
-        operators: [
-            // Multi-character operators
-            "==", "!=", "<=", ">=", "&&", "||", "<<", ">>",
-            "+=", "-=", "*=", "/=", "%=", "++", "--",
-            // Single-character operators
-            "+", "-", "*", "/", "%", "=", "!", "<", ">", "&", "|", "^", "~",
-            // Punctuation (brackets handled separately as distinct token types)
-            "?", ":", ";", ",", ".",
-        ],
-        brackets: [
-            ["{", "}"],  // Braces for code blocks
-            ["(", ")"],  // Parentheses for expressions and function calls
-            ["[", "]"],  // Brackets for lists
-        ],
-        stringDelimiters: ['"', "'"],  // Double and single quotes
-    },
-    luau: {
-        name: "luau",
-        lineCommentPrefix: "--",
-        blockCommentDelimiters: [
-            {
-                startingChar: "-",
-                endingChar: "]",
-                startingMatch: /^--\[[=]*\[$/, // Regex for `--[=[` with 0-n `=` characters
-                endingMatch: /^\][=]*\]$/, // Regex for `]=]` with 0-n `=` characters
-                lengthDifference: -2, // ending sequence is 2 chars shorter
-            }
-        ],
-        logicalOperators: {
-            and: "and",
-            or: "or",
-            not: "not"
-        },
-        useLongBracketSyntax: true,
-        directivePrefix: null,
-        directiveKeywords: ["require"],
-        operators: [
-            // Arithmetic operators
-            "+", "-", "*", "/", "%", "^",
-            // Relational operators
-            "==", "~=", "<=", ">=", "<", ">",
-            // Logical operators
-            "and", "or", "not",
-            // Other & punctuation (brackets handled separately as distinct token types)
-            "..", "#", "?", ":", ";", ",", ".",
-        ],
-        brackets: [
-            ["{", "}"],  // Braces for code blocks (do...end in Lua, but braces for tables)
-            ["(", ")"],  // Parentheses for expressions and function calls
-            ["[", "]"],  // Brackets for table indexing
-        ],
-        stringDelimiters: ['"', "'"],  // Double quotes, single quotes
-        multiLineStringDelimiters: [
-            {
-                startingChar: "[",
-                endingChar: "]",
-                startingMatch: /^\[[=]*\[$/, // Regex for `[=[` with 0-n `=` characters
-                endingMatch: /^\][=]*\]$/, // Regex for `]=]` with 0-n `=` characters
-                // allowsNewLines: true,
-            }
-        ],  // Double quotes, single quotes, and backticks
-        stringInterpDelimiter: {
-            char: "`",
-            open: "{",
-            close: "}",
-            escape: "\\",
-        }
-    },
-};
-
-/**
  * Get language configuration for a script language
  */
-export function getLanguageConfig(language: ScriptLanguage): LanguageLexerConfig {
-    return structuredClone(LANGUAGE_CONFIGS[language]);
+export function isProccessedLanguage(language: ScriptLanguage): boolean {
+    return language == "lsl" || language == "luau";
+}
+export function getLanguageConfig(language: ScriptLanguage, config: FullConfigInterface|null = null): LanguageLexerConfig {
+    switch (language) {
+        case "lsl":
+            return {
+                name: "lsl",
+                lineCommentPrefix: "//",
+                blockCommentDelimiters: [
+                    ["/*", "*/"]
+                ],
+                logicalOperators: {
+                    and: "&&",
+                    or: "||",
+                    not: "!"
+                },
+                useLongBracketSyntax: false,
+                supportsVectorLiterals: true,
+                directivePrefix: "#",
+                directiveKeywords: ["defined"],
+                operators: [
+                    // Multi-character operators
+                    "==", "!=", "<=", ">=", "&&", "||", "<<", ">>",
+                    "+=", "-=", "*=", "/=", "%=", "++", "--",
+                    // Single-character operators
+                    "+", "-", "*", "/", "%", "=", "!", "<", ">", "&", "|", "^", "~",
+                    // Punctuation (brackets handled separately as distinct token types)
+                    "?", ":", ";", ",", ".",
+                ],
+                brackets: [
+                    ["{", "}"],  // Braces for code blocks
+                    ["(", ")"],  // Parentheses for expressions and function calls
+                    ["[", "]"],  // Brackets for lists
+                ],
+                stringDelimiters: ['"', "'"],  // Double and single quotes
+            };
+        case "luau":
+            return {
+                name: "luau",
+                lineCommentPrefix: "--",
+                blockCommentDelimiters: [
+                    {
+                        startingChar: "-",
+                        endingChar: "]",
+                        startingMatch: /^--\[[=]*\[$/, // Regex for `--[=[` with 0-n `=` characters
+                        endingMatch: /^\][=]*\]$/, // Regex for `]=]` with 0-n `=` characters
+                        lengthDifference: -2, // ending sequence is 2 chars shorter
+                    }
+                ],
+                logicalOperators: {
+                    and: "and",
+                    or: "or",
+                    not: "not"
+                },
+                useLongBracketSyntax: true,
+                directivePrefix: null,
+                directiveKeywords: ["require"],
+                operators: [
+                    // Arithmetic operators
+                    "+", "-", "*", "/", "%", "^",
+                    // Relational operators
+                    "==", "~=", "<=", ">=", "<", ">",
+                    // Logical operators
+                    "and", "or", "not",
+                    // Other & punctuation (brackets handled separately as distinct token types)
+                    "..", "#", "?", ":", ";", ",", ".",
+                ],
+                brackets: [
+                    ["{", "}"],  // Braces for code blocks (do...end in Lua, but braces for tables)
+                    ["(", ")"],  // Parentheses for expressions and function calls
+                    ["[", "]"],  // Brackets for table indexing
+                ],
+                stringDelimiters: ['"', "'"],  // Double quotes, single quotes
+                multiLineStringDelimiters: [
+                    {
+                        startingChar: "[",
+                        endingChar: "]",
+                        startingMatch: /^\[[=]*\[$/, // Regex for `[=[` with 0-n `=` characters
+                        endingMatch: /^\][=]*\]$/, // Regex for `]=]` with 0-n `=` characters
+                        // allowsNewLines: true,
+                    }
+                ],  // Double quotes, single quotes, and backticks
+                stringInterpDelimiter: {
+                    char: "`",
+                    open: "{",
+                    close: "}",
+                    escape: "\\",
+                }
+            };
+        case "txt": {
+            const prefix = config ? config.getConfig<string|null>(ConfigKey.NotecardSyncComment, null) : null;
+            return {
+                name: "txt",
+                lineCommentPrefix: prefix ?? "",
+                blockCommentDelimiters: [],
+                logicalOperators: {
+                    and: "",
+                    or: "",
+                    not: ""
+                },
+                directivePrefix: prefix,
+                directiveKeywords: []
+            };
+        }
+    }
 }
 
 //#endregion
