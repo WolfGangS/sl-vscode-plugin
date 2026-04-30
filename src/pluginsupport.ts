@@ -168,6 +168,11 @@ export class LuaLSPPlugin extends BasePlugin {
         version: any,
         defs: LuaTypeDefinitions,
     ): Promise<boolean> {
+        if (!LuaLSPPlugin.isEnabledHost(this.host)) {
+            console.warn("Lua LSP plugin not active - skipping configuration");
+            return false;
+        }
+
         // Implementation for configuring the Lua LSP plugin
         let configs = this.buildLuauLSPConfig(defs);
 
