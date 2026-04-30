@@ -857,7 +857,17 @@ export class SynchService implements vscode.Disposable {
     }
 
     private onCloseWorkspace(workspace: vscode.WorkspaceFolder) : void {
-        console.error("WORKSPACE CLOSE",workspace.name,workspace.uri.fsPath);
+        const workspacePath = path.normalize(workspace.uri.fsPath);
+        const workspacePrefix = workspacePath.endsWith(path.sep)
+            ? workspacePath
+            : workspacePath + path.sep;
+
+        for (const document of vscode.workspace.textDocuments) {
+            const filePath = path.normalize(document.fileName);
+            if (filePath === workspacePath || filePath.startsWith(workspacePrefix)) {
+                this.removeSync(filePath);
+            }
+        }
     }
 
     private onDeleteFiles(event: vscode.FileDeleteEvent): void {
