@@ -271,7 +271,8 @@ export class SynchService implements vscode.Disposable {
                 this,
             );
             await sync.initialize();
-            this.activeSyncs.set(masterPath, sync);
+            const normalizedMasterPath = path.normalize(masterPath);
+            this.activeSyncs.set(normalizedMasterPath, sync);
             syncs.push(sync);
         }
 
