@@ -250,7 +250,11 @@ export class SynchService implements vscode.Disposable {
         }
 
         if(!this.host.config.getConfig(ConfigKey.KeepViewerFileOpen, true) && masterFound) {
-            closeTextDocument(viewerDocument);
+            void closeTextDocument(viewerDocument).catch((error) => {
+                logInfo(
+                    `Failed to auto-close viewer document ${viewerDocument.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}`,
+                );
+            });
         }
 
         if(syncs.length) {
