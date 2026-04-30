@@ -11,6 +11,8 @@ import { normalizePath, NormalizedPath } from "./interfaces/hostinterface";
 export const STATUS_BAR_TIMEOUT_SECONDS = 3;
 export const SCRIPT_FILE_PATTERN =
   /^sl_script_(.+)_([a-fA-F0-9]{32}|[a-fA-F0-9-]{36})\.(luau|lsl)$/;
+export const NOTECARD_FILE_PATTERN =
+  /^sl_notecard_(.+)_([a-fA-F0-9]{32}|[a-fA-F0-9-]{36})\.txt$/;
 
 
 export const configPrefix = "slVscodeEdit";

@@ -5,7 +5,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { SCRIPT_FILE_PATTERN, ConfigService } from "./configservice";
+import { SCRIPT_FILE_PATTERN, ConfigService, NOTECARD_FILE_PATTERN } from "./configservice";
 import { ConfigKey } from "./interfaces/configinterface";
 import {
     ViewerEditWSClient,
@@ -151,6 +151,12 @@ export class SynchService implements vscode.Disposable {
         this.disposables.push(onDidChangeWindowState);
         this.disposables.push(onDidChangeActiveTextEditor);
         this.disposables.push(vscode.window.registerFileDecorationProvider(this.syncedFileDecorator));
+
+        const launchDoc = vscode.window.activeTextEditor?.document
+
+        if(launchDoc) {
+            this.onOpenTextDocument(launchDoc);
+        }
     }
 
     private async initializeSyntax(): Promise<void> {
@@ -613,6 +619,12 @@ export class SynchService implements vscode.Disposable {
     private static parseTempFile(
         viewerFilePath: string,
     ): ParsedTempFile | null {
+        return SynchService.parseTempScriptFile(viewerFilePath) ?? SynchService.parseTempNotecardFile(viewerFilePath);
+    }
+
+    private static parseTempScriptFile(
+        viewerFilePath: string,
+    ): ParsedTempFile | null {
         const openedBase = path.basename(viewerFilePath);
         const match = openedBase.match(SCRIPT_FILE_PATTERN);
 
@@ -622,6 +634,22 @@ export class SynchService implements vscode.Disposable {
                 scriptId: match[2],
                 extension: match[3],
                 language: match[3].toLowerCase() == "lsl" ? "lsl" : "luau",
+            }
+            : null;
+    }
+
+    private static parseTempNotecardFile(
+        viewerFilePath: string,
+    ): ParsedTempFile | null {
+        const openedBase = path.basename(viewerFilePath);
+        const match = openedBase.match(NOTECARD_FILE_PATTERN);
+
+        return match
+            ? {
+                scriptName: match[1],
+                scriptId: match[2],
+                extension: "txt",
+                language: "txt",
             }
             : null;
     }
@@ -662,19 +690,8 @@ export class SynchService implements vscode.Disposable {
         viewerFile: vscode.TextDocument
     ): Promise<vscode.Uri | null> {
         // Attempt to match by file meta info
-        if (ConfigService.getInstance().getConfig<boolean>(ConfigKey.FileMetaInfoInOutput, false)) {
-            const cmt = getLanguageConfig(script.language).lineCommentPrefix;
-            const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]*[A-z0-9-_/.]*[\\s]*$`, "i");
-            const range = new vscode.Range(0, 0, 10, 0);
-            const start = viewerFile.getText(range).split("\n").filter(line => line.match(lineRegExp))[0] ?? null;
-            if (start) {
-                const files = await vscode.workspace.findFiles(start.split("@file")[1].trim());
-                if (files.length == 1) {
-                    console.warn("Match on meta info");
-                    return files[0];
-                }
-            }
-        }
+        const metaMatch = SynchService.findMasterFileByMetaComment(script, viewerFile);
+        if(metaMatch) return metaMatch;
 
         let files = await vscode.workspace.findFiles(`**/${script.scriptName}.${script.extension}`);
         if (files.length > 0) {
@@ -704,6 +721,82 @@ export class SynchService implements vscode.Disposable {
             }
             return null
         }
+    }
+
+    // Resolve file by checking actual paths, not searching with globs as, filenames may contain glob special characters
+    private static async resolveUriFromMetaFilePath(
+        pathPart: string,
+    ): Promise<vscode.Uri | null> {
+        const trimmed = pathPart.trim();
+        if (!trimmed) {
+            return null;
+        }
+
+        const isWindowsDrive = /^[a-zA-Z]:[\\/]/.test(trimmed);
+        const isAbs = path.isAbsolute(trimmed) || isWindowsDrive;
+
+        const tryUriInWorkspace = async (uri: vscode.Uri): Promise<vscode.Uri | null> => {
+            if (!vscode.workspace.getWorkspaceFolder(uri)) {
+                return null;
+            }
+            try {
+                const st = await vscode.workspace.fs.stat(uri);
+                if (st.type === vscode.FileType.File) {
+                    return uri;
+                }
+            } catch {
+                // Miss
+            }
+            return null;
+        };
+
+        if (isAbs) {
+            const uri = vscode.Uri.file(path.normalize(trimmed));
+            return tryUriInWorkspace(uri);
+        }
+
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders?.length) {
+            return null;
+        }
+        // Split path windows or unix style
+        const segments = trimmed
+            .replace(/\\/g, "/")
+            .split("/")
+            .filter((s) => s.length > 0);
+        for (const folder of folders) {
+            const joined = path.join(folder.uri.fsPath, ...segments);
+            const candidate = vscode.Uri.file(path.normalize(joined));
+            const hit = await tryUriInWorkspace(candidate);
+            if (hit) {
+                return hit;
+            }
+        }
+        return null;
+    }
+
+    private static async findMasterFileByMetaComment(
+        script: ParsedTempFile,
+        viewerFile: vscode.TextDocument
+    ) : Promise<vscode.Uri | null> {
+        const config =  ConfigService.getInstance()
+
+        const cmt = getLanguageConfig(script.language,config).lineCommentPrefix;
+
+        if(cmt.length < 1) return null;
+
+        const lineRegExp = new RegExp(`^[\\s]*${cmt}[\\s]*@file[\\s]+.*$`, "i");
+        const range = new vscode.Range(0, 0, 10, 0);
+        const lines = viewerFile.getText(range).split("\n");
+        const start = lines.filter(line => line.match(lineRegExp))[0] ?? null;
+        if (start) {
+            const pathPart = start.split("@file")[1]?.trim() ?? "";
+            const resolved = await SynchService.resolveUriFromMetaFilePath(pathPart);
+            if (resolved) {
+                return resolved;
+            }
+        }
+        return null;
     }
 
     private static async openMasterScript(
