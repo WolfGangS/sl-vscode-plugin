@@ -25,7 +25,7 @@ import {
 } from "./utils";
 import { ScriptLanguage } from "./shared/languageservice";
 import { CompilationResult, RuntimeDebug, RuntimeError } from "./viewereditwsclient";
-import { HostInterface, normalizePath } from "./interfaces/hostinterface";
+import { normalizePath } from "./interfaces/hostinterface";
 import { SynchService } from "./synchservice";
 import { IncludeInfo } from "./shared/parser";
 import { sha256 } from "js-sha256";
@@ -51,18 +51,19 @@ export class ScriptSync implements vscode.Disposable {
     private diagnosticSources: Set<string> = new Set();
     private lineMappings?: LineMapping[];
     private config: ConfigService;
-    private host: HostInterface;
+    // private host: HostInterface;
 
     private includedFiles : IncludeInfo[] = [];
+    private syncService: SynchService;
 
     //====================================================================
     public constructor(
         masterDocument: vscode.TextDocument,
         language: ScriptLanguage,
         config: ConfigService,
-        scriptId?: string,
-        viewerDocument?: vscode.TextDocument,
-        host?: HostInterface,
+        scriptId: string,
+        viewerDocument: vscode.TextDocument,
+        syncService: SynchService,
     ) {
         this.config = config;
 
@@ -71,12 +72,12 @@ export class ScriptSync implements vscode.Disposable {
         this.macros = new MacroProcessor();
         this.initializeSystemMacros(language);
 
-        this.host = host ?? new VSCodeHost();
+        this.syncService = syncService;
 
         // Initialize preprocessor with macro processor
         const enabled = config.getConfig<boolean>(ConfigKey.PreprocessorEnable, true);
         if (enabled && isProccessedLanguage(this.language)) {
-            this.preprocessor = new LexingPreprocessor(this.host, config, this.macros);
+            this.preprocessor = new LexingPreprocessor(this.syncService.getHost(), config, this.macros);
         }
 
         this.masterDocument = masterDocument;
@@ -146,6 +147,10 @@ export class ScriptSync implements vscode.Disposable {
             this.fileMappings = this.fileMappings.filter((m) => m !== mapping);
             if (close) {
                 closeTextDocument(mapping.viewerDocument);
+                mapping.watcher?.dispose();
+            }
+            if(!this.hasFilesToTrack()) {
+                this.syncService.clearEmptySyncs();
             }
         }
         return this.fileMappings.length;
@@ -157,10 +162,7 @@ export class ScriptSync implements vscode.Disposable {
             (m) => path.normalize(m.viewerDocument.fileName) === viewerFile,
         );
         if (mapping) {
-            this.fileMappings = this.fileMappings.filter((m) => m !== mapping);
-            if (close) {
-                closeTextDocument(mapping.viewerDocument);
-            }
+            this.unsubscribeById(mapping.id, close);
         }
         return this.fileMappings.length;
     }
@@ -176,6 +178,10 @@ export class ScriptSync implements vscode.Disposable {
         return this.fileMappings.some(
             (mapping) => mapping.viewerDocument.fileName === viewerFile,
         );
+    }
+
+    public hasFilesToTrack() : boolean {
+        return this.fileMappings.length > 0;
     }
 
     public getMasterDocument(): vscode.TextDocument {
@@ -585,6 +591,7 @@ export class ScriptSync implements vscode.Disposable {
 
         try {
             this.diagnosticCollection.dispose();
+            this.fileMappings.forEach(map => map.watcher?.dispose());
         } catch (error) {
             // Log but don't throw during disposal
             console.warn("Error during ScriptSync disposal:", error);

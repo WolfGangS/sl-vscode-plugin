@@ -48,6 +48,40 @@
         "command": "second-life-scripting.forceLanguageUpdate",
         "title": "Force Language Update",
         "category": "Second Life"
+      },
+      {
+        "command": "second-life-scripting.stopFileSync",
+        "shortTitle": "Stop File Sync",
+        "title": "Stop file sync with SL Viewer",
+        "category": "Second Life"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "second-life-scripting.stopFileSync",
+          "group": "navigation@99",
+          "when": "resourceScheme == file && slVscodeEdit:syncsActive"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "second-life-scripting.stopFileSync",
+          "group": "1_close@99",
+          "when": "resourceScheme == file && slVscodeEdit:syncsActive"
+        }
+      ]
+    },
+    "colors": [
+      {
+        "id": "secondlife.syncedfile",
+        "description": "Color for files that are being synced with the viewer",
+        "defaults": {
+          "dark": "tab.activeBorderTop",
+          "light": "tab.activeBorderTop",
+          "highContrast": "tab.activeBorderTop",
+          "highContrastLight": "tab.activeBorderTop"
+        }
       }
     ],
     "configuration": [
@@ -105,6 +139,11 @@
             "type": "boolean",
             "default": false,
             "description": "Whether the current sl user info should be included in the meta info"
+          },
+          "slVscodeEdit.sync.keepViewerFileOpen": {
+            "type": "boolean",
+            "default": true,
+            "description": "Should the viewers tempfile be kept open while editing"
           },
           "slVscodeEdit.sync.notecardComment": {
             "type": "string",
