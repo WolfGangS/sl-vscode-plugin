@@ -122,7 +122,6 @@ function setupCommands(context: vscode.ExtensionContext) : void {
         vscode.commands.registerCommand(
             "second-life-scripting.stopFileSync",
             (uri?: vscode.Uri) => {
-                console.error("CLOSE SYNC COMMAND", uri);
                 if(!uri) {
                     uri = vscode.window.activeTextEditor?.document.uri;
                 }
