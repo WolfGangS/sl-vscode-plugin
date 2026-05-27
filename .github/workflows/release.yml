@@ -1,0 +1,482 @@
+name: Cut Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag to create, for example v1.0.3
+        required: true
+        type: string
+      target_commitish:
+        description: Branch or commit SHA the tag should point to
+        required: true
+        default: develop
+        type: string
+      prerelease:
+        description: Mark the GitHub release as a prerelease
+        required: true
+        default: true
+        type: boolean
+      draft:
+        description: Create the GitHub release as a draft
+        required: true
+        default: false
+        type: boolean
+      publish_marketplace:
+        description: Publish the extension to the VS Code Marketplace
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  authorize_actor:
+    name: Authorize triggering user
+    runs-on: ubuntu-latest
+    steps:
+    - name: Ensure actor has access
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const username = context.actor;
+
+          const response = await github.rest.repos.getCollaboratorPermissionLevel({
+            owner,
+            repo,
+            username,
+          });
+
+          const allowed = ['admin', 'maintain'];
+
+          if (!allowed.includes(response.data.permission)) {
+            core.setFailed(
+              `${username} must have maintain or admin access to run this workflow. Current permission: ${response.data.permission}`
+            );
+            return;
+          }
+
+          core.info(`${username} is authorized with permission: ${response.data.permission}`);
+
+  validate:
+    name: Validate release inputs
+    needs: authorize_actor
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set_variables.outputs.version }}
+    steps:
+      - name: Validate
+        shell: bash
+        run: |
+          if [ -z "${{ inputs.tag_name }}" ]; then
+            echo "tag_name is required and cannot be empty" >&2
+            exit 1
+          fi
+
+          # Enforce plain vX.Y.Z — no pre-release suffixes or build metadata.
+          # The VS Code Marketplace does not support SemVer pre-release identifiers in
+          # extension versions. Use an odd minor number (e.g. v1.3.0) with the
+          # prerelease input flag instead of a suffix like v1.2.3-rc.1.
+          if [[ ! "${{ inputs.tag_name }}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "tag_name must be plain vX.Y.Z (for example v1.0.3)." >&2
+            echo "The VS Code Marketplace does not support pre-release suffixes in version numbers." >&2
+            echo "Use an odd minor version (e.g. v1.3.0) with the prerelease flag for pre-release builds." >&2
+            exit 1
+          fi
+
+          # Enforce odd/even minor version convention:
+          #   even minor (0, 2, 4, ...) → stable release  (prerelease must be false)
+          #   odd  minor (1, 3, 5, ...) → pre-release     (prerelease must be true)
+          MINOR=$(echo "${{ inputs.tag_name }}" | cut -d. -f2)
+          IS_PRERELEASE="${{ inputs.prerelease }}"
+          if (( MINOR % 2 == 0 )) && [[ "$IS_PRERELEASE" == "true" ]]; then
+            echo "Even minor version (${{ inputs.tag_name }}) must not be marked as prerelease." >&2
+            echo "Even minor = stable release. Use an odd minor version for pre-release builds." >&2
+            exit 1
+          fi
+          if (( MINOR % 2 == 1 )) && [[ "$IS_PRERELEASE" == "false" ]]; then
+            echo "Odd minor version (${{ inputs.tag_name }}) must be marked as prerelease." >&2
+            echo "Odd minor = pre-release. Use an even minor version for stable releases." >&2
+            exit 1
+          fi
+
+          echo "tag_name=${{ inputs.tag_name }}" >&2
+          echo "target_commitish=${{ inputs.target_commitish }}" >&2
+          echo "prerelease=${{ inputs.prerelease }}" >&2
+          echo "draft=${{ inputs.draft }}" >&2
+
+      - name: Set Variables
+        id: set_variables
+        shell: bash
+        run: |
+          TAG_NAME="${{ inputs.tag_name }}"
+          SEMANTIC_VERSION="${TAG_NAME#v}"
+          echo "version=$SEMANTIC_VERSION" >> "$GITHUB_OUTPUT"
+          echo "version=$SEMANTIC_VERSION" >&2
+
+  release_notes:
+    needs: validate
+    name: Generate release notes
+    runs-on: ubuntu-latest
+    outputs:
+      release_notes: ${{ steps.generate.outputs.release_notes }}
+    permissions:
+      contents: write
+
+    steps:
+    - name: Generate release notes body
+      id: generate
+      uses: actions/github-script@v7
+      env:
+        TAG_NAME: ${{ inputs.tag_name }}
+        TARGET_COMMITISH: ${{ inputs.target_commitish }}
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const tag_name = process.env.TAG_NAME;
+          const target_commitish = process.env.TARGET_COMMITISH;
+
+          const response = await github.rest.repos.generateReleaseNotes({
+            owner,
+            repo,
+            tag_name,
+            target_commitish,
+          });
+
+          core.setOutput('release_notes', response.data.body || '');
+
+    - name: Checkout target branch
+      uses: actions/checkout@v5
+      with:
+        ref: ${{ inputs.target_commitish }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24.x'
+        cache: 'npm'
+
+    - name: Update version
+      shell: bash
+      run: |
+        VERSION="${{ needs.validate.outputs.version }}"
+        npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+    - name: Write release notes file
+      shell: bash
+      env:
+        RELEASE_NOTES: ${{ steps.generate.outputs.release_notes }}
+      run: |
+        printf '%s\n' "$RELEASE_NOTES" > release_notes.md
+
+    - name: Update CHANGELOG.md
+      shell: bash
+      run: |
+        VERSION="${{ needs.validate.outputs.version }}"
+        RELEASE_DATE=$(date -u +%Y-%m-%d)
+
+        {
+          echo "## [${VERSION}] - ${RELEASE_DATE}"
+          echo
+          cat release_notes.md
+          echo
+        } > changelog_entry.md
+
+        awk '
+          BEGIN { inserted = 0 }
+          /^## \[/ && inserted == 0 {
+            while ((getline line < "changelog_entry.md") > 0) print line
+            close("changelog_entry.md")
+            print ""
+            inserted = 1
+          }
+          { print }
+          END {
+            if (inserted == 0) {
+              print ""
+              while ((getline line < "changelog_entry.md") > 0) print line
+              close("changelog_entry.md")
+            }
+          }
+        ' CHANGELOG.md > CHANGELOG.new.md
+
+        mv CHANGELOG.new.md CHANGELOG.md
+        cat CHANGELOG.md >&2
+
+    - name: Update README badges from package.json
+      shell: bash
+      run: |
+        node - <<'NODE'
+        const fs = require('fs');
+
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        let vscodeVersion = pkg.engines && pkg.engines.vscode ? String(pkg.engines.vscode) : '';
+
+        if (vscodeVersion.startsWith('^')) {
+          vscodeVersion = `${vscodeVersion.slice(1)}+`;
+        }
+
+        const versionBadge = `[![Version](https://img.shields.io/badge/version-${pkg.version}-blue.svg)](https://github.com/secondlife/sl-vscode-plugin)`;
+        const licenseBadge = `[![License](https://img.shields.io/badge/license-${pkg.license}-green.svg)](LICENSE)`;
+        const vscodeBadge = `[![VS Code](https://img.shields.io/badge/VS%20Code-${encodeURIComponent(vscodeVersion)}-red.svg)](https://code.visualstudio.com/)`;
+
+        let readme = fs.readFileSync('README.md', 'utf8');
+
+        readme = readme.replace(/^\[!\[Version\]\(https:\/\/img\.shields\.io\/badge\/version-[^)]+\)\]\(https:\/\/github\.com\/secondlife\/sl-vscode-plugin\)$/m, versionBadge);
+        readme = readme.replace(/^\[!\[License\]\(https:\/\/img\.shields\.io\/badge\/license-[^)]+\)\]\(LICENSE\)$/m, licenseBadge);
+        readme = readme.replace(/^\[!\[VS Code\]\(https:\/\/img\.shields\.io\/badge\/VS%20Code-[^)]+\)\]\(https:\/\/code\.visualstudio\.com\/\)$/m, vscodeBadge);
+
+        fs.writeFileSync('README.md', readme);
+        NODE
+
+    - name: Package modified files for downstream jobs
+      shell: bash
+      run: |
+        rm -rf release-notes-files
+        mkdir -p release-notes-files
+
+        git ls-files -m > modified-files.txt
+        git ls-files --others --exclude-standard >> modified-files.txt
+
+        if [ ! -s modified-files.txt ]; then
+          echo "No modified files detected" >&2
+        else
+          while IFS= read -r file; do
+            if [ -n "$file" ] && [ -e "$file" ]; then
+              mkdir -p "release-notes-files/$(dirname "$file")"
+              cp "$file" "release-notes-files/$file"
+            fi
+          done < modified-files.txt
+        fi
+
+    - name: Upload modified files artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-notes-modified-files-${{ github.run_id }}
+        path: |
+          release-notes-files
+          modified-files.txt
+        retention-days: 1
+
+    # - name: Commit and push changelog update
+    #   shell: bash
+    #   run: |
+    #     TARGET_BRANCH="${{ inputs.target_commitish }}"
+    #     TARGET_BRANCH="${TARGET_BRANCH#refs/heads/}"
+
+    #     if ! git ls-remote --exit-code --heads origin "$TARGET_BRANCH" > /dev/null; then
+    #       echo "target_commitish must be a branch name (or refs/heads/<branch>) to update CHANGELOG.md" >&2
+    #       echo "Received: ${{ inputs.target_commitish }}" >&2
+    #       exit 1
+    #     fi
+
+    #     git config user.name "github-actions[bot]"
+    #     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+    #     git add CHANGELOG.md
+
+    #     if git diff --cached --quiet; then
+    #       echo "No changelog changes to commit"
+    #       exit 0
+    #     fi
+
+    #     git commit -m "docs: update changelog for ${{ inputs.tag_name }}"
+    #     git push origin HEAD:$TARGET_BRANCH
+
+  build:
+    needs: release_notes
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+      with:
+        ref: ${{ inputs.target_commitish }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24.x'
+        cache: 'npm'
+
+    - name: Download modified files artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: release-notes-modified-files-${{ github.run_id }}
+        path: .
+
+    - name: Apply modified files from release_notes job
+      shell: bash
+      run: |
+        if [ -d release-notes-files ]; then
+          cp -R release-notes-files/. .
+        fi
+
+    - name: Create release branch, commit, and push tag
+      shell: bash
+      run: |
+        TARGET_BRANCH="${{ inputs.target_commitish }}"
+        TARGET_BRANCH="${TARGET_BRANCH#refs/heads/}"
+        RELEASE_BRANCH="release/${{ inputs.tag_name }}"
+
+        if ! git ls-remote --exit-code --heads origin "$TARGET_BRANCH" > /dev/null; then
+          echo "target_commitish must be a branch name (or refs/heads/<branch>) to create a release branch" >&2
+          echo "Received: ${{ inputs.target_commitish }}" >&2
+          exit 1
+        fi
+
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        git checkout -b "$RELEASE_BRANCH"
+        git add -u
+
+        if git diff --cached --quiet; then
+          echo "No repository changes to commit"
+        else
+          git commit -m "chore: prepare release ${{ inputs.tag_name }}"
+        fi
+
+        git push origin "$RELEASE_BRANCH"
+
+        git tag -a "${{ inputs.tag_name }}" -m "Release ${{ inputs.tag_name }}"
+        git push origin "refs/tags/${{ inputs.tag_name }}"
+
+    - name: Create release PRs
+      uses: actions/github-script@v7
+      env:
+        RELEASE_NOTES: ${{ needs.release_notes.outputs.release_notes }}
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const releaseBranch = `release/${{ inputs.tag_name }}`;
+          const tagName = '${{ inputs.tag_name }}';
+          const prTitle = `chore: prepare release ${tagName}`;
+          const releaseNotes = process.env.RELEASE_NOTES || '';
+          const prBody = `Automated release PR for ${tagName}.\n\nUpdates CHANGELOG.md, package.json version, and README badges.\n\n## Release Notes\n\n${releaseNotes}`;
+
+          for (const base of ['develop', 'main']) {
+            try {
+              const pr = await github.rest.pulls.create({
+                owner,
+                repo,
+                title: prTitle,
+                head: releaseBranch,
+                base,
+                body: prBody,
+              });
+              core.info(`Created PR into ${base}: ${pr.data.html_url}`);
+            } catch (err) {
+              core.warning(`Failed to create PR into ${base}: ${err.message}`);
+            }
+          }
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Compile extension
+      run: npm run vscode:prepublish
+
+    - name: Install vsce
+      run: npm install -g @vscode/vsce
+
+    - name: Package extension
+      run: vsce package
+
+    - name: Get package filename
+      id: package
+      shell: bash
+      run: |
+        PACKAGE_FILE=$(ls *.vsix | head -1)
+        echo "filename=$PACKAGE_FILE" >> "$GITHUB_OUTPUT"
+
+    - name: Upload VSIX artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: vscode-extension-release-${{ github.run_id }}
+        path: ${{ steps.package.outputs.filename }}
+        retention-days: 30
+
+  release:
+    name: Publish release
+    needs: [build, release_notes, validate]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download VSIX artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: vscode-extension-release-${{ github.run_id }}
+        path: vsix/
+
+    - name: Download modified files artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: release-notes-modified-files-${{ github.run_id }}
+        path: .
+
+    - name: Apply modified files from release_notes job
+      shell: bash
+      run: |
+        if [ -d release-notes-files ]; then
+          cp -R release-notes-files/. .
+        fi
+
+    - name: Get package filename
+      id: package
+      shell: bash
+      run: |
+        PACKAGE_FILE=$(ls vsix/*.vsix | head -1)
+        echo "filename=$PACKAGE_FILE" >> "$GITHUB_OUTPUT"
+
+    - name: Create release page
+      id: release
+      uses: secondlife-3p/action-gh-release@v1
+      with:
+        # name the release page for the branch
+        tag_name: ${{ inputs.tag_name }}
+        target_commitish: ${{ inputs.target_commitish }}
+        name: "SL-VScode Plugin ${{ needs.validate.outputs.version }} Release"
+        prerelease: ${{ inputs.prerelease }}
+        draft: ${{ inputs.draft }}
+        body_path: release_notes.md
+        files: ${{ steps.package.outputs.filename }}
+
+  publish:
+    name: Publish to VS Code Marketplace
+    needs: [release, build, validate]
+    runs-on: ubuntu-latest
+    # Skip if publish not requested or if this is a draft release
+    if: ${{ inputs.publish_marketplace && !inputs.draft }}
+
+    steps:
+    - name: Download VSIX artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: vscode-extension-release-${{ github.run_id }}
+        path: vsix/
+
+    - name: Get package filename
+      id: package
+      shell: bash
+      run: |
+        PACKAGE_FILE=$(ls vsix/*.vsix | head -1)
+        echo "filename=$PACKAGE_FILE" >> "$GITHUB_OUTPUT"
+
+    - name: Publish to Marketplace
+      shell: bash
+      env:
+        VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      run: |
+        npm install -g @vscode/vsce
+
+        if [[ "${{ inputs.prerelease }}" == "true" ]]; then
+          echo "Publishing pre-release to Marketplace..." >&2
+          vsce publish --pre-release --packagePath "${{ steps.package.outputs.filename }}" --pat "$VSCE_PAT"
+        else
+          echo "Publishing stable release to Marketplace..." >&2
+          vsce publish --packagePath "${{ steps.package.outputs.filename }}" --pat "$VSCE_PAT"
+        fi
