@@ -45,11 +45,13 @@ The Second Life External Scripting Extension transforms VS Code into a developme
 
 ## Installation
 
-### From VS Code Marketplace (Coming Soon)
+### From VS Code Marketplace
+Use this link - https://marketplace.visualstudio.com/items?itemName=lindenlab.sl-vscode-plugin
 
+Or
 1. Open VS Code
 2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "Second Life External Scripting"
+3. Search for "Second Life VSCode Plugin"
 4. Click Install
 
 ### Manual Installation
