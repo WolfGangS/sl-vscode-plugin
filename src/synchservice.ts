@@ -643,7 +643,7 @@ export class SynchService implements vscode.Disposable {
             showWarningMessage("Failed to get syntax ID from viewer.");
             return;
         }
-        const success = await service.changeSyntaxVersion(syntaxId, socket, true);
+        const success = await service.changeSyntaxVersion(syntaxId, socket, true, this.syntaxCacheSupported);
         if (!success) {
             showWarningMessage("Failed to update syntax.");
         }
