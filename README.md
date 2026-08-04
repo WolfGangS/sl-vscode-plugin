@@ -71,6 +71,10 @@ Or
 2. **Open the folder in VS Code**
 3. **Start scripting** with preprocessing features!
 
+Note that SLua typechecking/linting will not work properly yet.
+For that to work, you'll need to also follow the instructions in
+[Recommended Extensions](#recommended-extensions) and [Using with Second Life Viewer](#using-with-second-life-viewer) below.
+
 ### Basic Include Example (LSL)
 
 Create modular, maintainable scripts:
@@ -209,19 +213,34 @@ When `true` (default), configuration files are stored in your workspace's `.vsco
 
 ## Using with Second Life Viewer
 
+Connecting to the Second Life Viewer is the primary purpose of this plugin. Connecting does 2 things:
+1. Syncs scripts/notecards between VS Code and Second Life Viewer
+2. Downloads SLua language definition files from Second Life Viewer.
+   This enables the [Luau Language Server and Selene extensions](#recommended-extensions) to typecheck and lint SLua scripts.
+   Note that you must be in a Lua-enabled sim for this to work.
+
 ### Connection Setup
 
 1. **Enable External Script Editor** in Second Life viewer preferences
 2. **Set the editor** to connect via WebSocket on port 9020 (configurable)
 3. **Configure the extension** using VS Code settings for WebSocket connection
 
-### Workflow
+### Editing a single script
 
 1. **Right-click** on an object in Second Life
-2. **Select "Edit"** → **"Scripts"**
+2. **Select "Edit"** → **"Content"**
 3. **Click "New Script"** or **"Edit"** on existing script
-4. **Choose external editor** - VS Code will automatically open
+4. **Click "Edit..." in the script window** - VS Code will automatically open
 5. **Edit in VS Code** with full preprocessing support
+6. **Save** to sync changes back to the viewer
+
+### Editing an entire prim
+
+1. **Right-click** on an object in Second Life
+2. **Select "Edit"** → **"Content"**
+3. **Click "Explore in IDE"** - VS Code will automatically open
+4. In the VS Code Explorer tab, **expand the "Second Life (connected)" section**
+5. **Browse and edit** all scripts and notecards in that prim
 6. **Save** to sync changes back to the viewer
 
 ### Linux-specific instructions
@@ -384,6 +403,13 @@ For enhanced language support and features, install these language server extens
 - **Selene** (`kampfkarren.selene-vscode`) - Lua linter and language support
 - **Luau Language Server** (`johnnymorganz.luau-lsp`) - Luau language server
 
+Note that SLua typechecking/linting files are not included with this plugin, and need to be downloaded from the viewer.
+You will get errors like:
+```
+TypeError: Unknown global 'll'; consider assigning to it first
+```
+until you also follow the instructions in [Using with Second Life Viewer](#using-with-second-life-viewer) above.
+
 **For LSL files:**
 - **LSL Language Server** (such as `sekkmer.vscode-lsl-lsp`) - LSL language support with diagnostics
 
@@ -391,7 +417,8 @@ For enhanced language support and features, install these language server extens
 - **StyLua** (`johnnymorganz.stylua`) - Lua code formatter
 - **VSCode LSL** (`vrtlabs.vscode-lsl`) - Alternative LSL language support
 
-**Note**: These extensions are optional but recommended for the best development experience. The preprocessor and viewer integration features work independently of these language servers.
+**Note**: These extensions are optional but recommended for the best development experience.
+The preprocessor and viewer integration features work independently of these language servers.
 
 ---
 
