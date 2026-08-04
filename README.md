@@ -217,7 +217,7 @@ Connecting to the Second Life Viewer is the primary purpose of this plugin. Conn
 1. Syncs scripts/notecards between VS Code and Second Life Viewer
 2. Downloads SLua language definition files from Second Life Viewer.
    This enables the [Luau Language Server and Selene extensions](#recommended-extensions) to typecheck and lint SLua scripts.
-   Note that you must be standing in a Lua-enabled sim for this to work.
+   Note that you must be in a Lua-enabled sim for this to work.
 
 ### Connection Setup
 
