@@ -398,9 +398,9 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^8.42.0",
-    "@typescript-eslint/parser": "^8.42.0",
-    "@vscode/test-cli": "^0.0.11",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.34.0",
     "glob": "^11.1.0",
@@ -411,8 +411,8 @@
     "@iarna/toml": "^2.2.5",
     "@types/ws": "^8.18.1",
     "js-sha256": "^0.11.1",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^4.3.0",
     "vscode-languageclient": "^9.0.1",
-    "ws": "^8.18.3"
+    "ws": "^8.21.0"
   }
 }
