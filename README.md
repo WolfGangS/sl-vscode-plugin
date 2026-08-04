@@ -73,7 +73,7 @@ Or
 
 Note that SLua typechecking/linting will not work properly yet.
 For that to work, you'll need to also follow the instructions in
-*Recommended Extensions* and *Using with Second Life Viewer* below.
+[Recommended Extensions](#recommended-extensions) and [Using with Second Life Viewer](#using-with-second-life-viewer) below.
 
 ### Basic Include Example (LSL)
 
@@ -406,7 +406,7 @@ You will get errors like:
 ```
 TypeError: Unknown global 'll'; consider assigning to it first
 ```
-until you also follow the instructions in *Using with Second Life Viewer* above.
+until you also follow the instructions in [Using with Second Life Viewer](#using-with-second-life-viewer) above.
 
 **For LSL files:**
 - **LSL Language Server** (such as `sekkmer.vscode-lsl-lsp`) - LSL language support with diagnostics
