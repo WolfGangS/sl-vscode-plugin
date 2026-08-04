@@ -401,7 +401,7 @@ For enhanced language support and features, install these language server extens
 - **Selene** (`kampfkarren.selene-vscode`) - Lua linter and language support
 - **Luau Language Server** (`johnnymorganz.luau-lsp`) - Luau language server
 
-Note that SLua typechecking/linting files are not included with this plugin, and need to be grabbed from the viewer.
+Note that SLua typechecking/linting files are not included with this plugin, and need to be downloaded from the viewer.
 You will get errors like:
 ```
 TypeError: Unknown global 'll'; consider assigning to it first
