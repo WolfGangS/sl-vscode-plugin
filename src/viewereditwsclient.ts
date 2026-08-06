@@ -119,6 +119,41 @@ export interface SyntaxCacheFile {
     error?: string;
 }
 
+export interface CommandExecuteParams {
+    command: string;
+    params?: Record<string, unknown>;
+}
+
+export interface CommandExecuteResponse {
+    success: boolean;
+    result?: unknown;
+    error_code?: CommandErrorCode;
+    message?: string;
+}
+
+export const enum CommandErrorCode {
+    UnknownCommand  = 1,
+    InvalidParams   = 2,
+    NotPermitted    = 3,
+    ExecutionError  = 4,
+}
+
+export interface CommandParamInfo {
+    type: "string" | "number" | "boolean" | "object" | "array";
+    required?: boolean;
+    description?: string;
+}
+
+export interface CommandInfo {
+    command: string;
+    description?: string;
+    params?: Record<string, CommandParamInfo>;
+}
+
+export interface CommandListResponse {
+    commands: CommandInfo[];
+}
+
 export interface CompilationError {
     row: number;
     column: number;
@@ -168,6 +203,8 @@ export interface WebSocketHandlers {
     onObjectPublish?: (message: ObjectPublishMessage) => void;
     onObjectUnpublish?: (message: ObjectUnpublishMessage) => void;
     onObjectUpdate?: (message: ObjectUpdateMessage) => void;
+    onCommandExecute?: (params: CommandExecuteParams) => Promise<CommandExecuteResponse>;
+    onCommandList?: () => CommandListResponse;
 }
 
 /**
@@ -238,6 +275,20 @@ export class ViewerEditWSClient extends JSONRPCClient {
         this.on("object.publish", this.handlers.onObjectPublish);
         this.on("object.unpublish", this.handlers.onObjectUnpublish);
         this.on("object.update", this.handlers.onObjectUpdate);
+
+        this.on("command.execute", (params: CommandExecuteParams): Promise<CommandExecuteResponse> => {
+            if (this.handlers.onCommandExecute) {
+                return this.handlers.onCommandExecute(params);
+            }
+            return Promise.resolve({ success: false, error_code: CommandErrorCode.UnknownCommand, message: "Unknown command" });
+        });
+
+        this.on("command.list", (): CommandListResponse => {
+            if (this.handlers.onCommandList) {
+                return this.handlers.onCommandList();
+            }
+            return { commands: [] };
+        });
 
         // Register handler for viewer-initiated pings
         this.on("session.ping", (params: SessionPing): SessionPingResponse => ({
@@ -396,6 +447,14 @@ export class ViewerEditWSClient extends JSONRPCClient {
 
     public getScriptList(): Promise<ScriptList> {
         return this.call("script.list", {});
+    }
+
+    public executeCommand(params: CommandExecuteParams): Promise<CommandExecuteResponse> {
+        return this.call("command.execute", params);
+    }
+
+    public listCommands(): Promise<CommandListResponse> {
+        return this.call("command.list", {});
     }
 
     private setupConnectionCloseHandler(): void {

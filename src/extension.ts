@@ -8,7 +8,8 @@ import { LanguageService } from "./shared/languageservice";
 import { ObjectContentService } from "./vscode/objectcontentservice";
 import { ObjectContentProvider, SL_SCHEME, displayName } from "./vscode/objectcontentprovider";
 import { ObjectContentDecorator } from "./vscode/ObjectContentDecorator";
-import { ObjectExplorerProvider, ExplorerNode } from "./vscode/objectexplorerprovider";
+import { ExplorerNode } from "./vscode/objectexplorerprovider";
+import { ObjectExplorerWebviewProvider } from "./vscode/objectexplorerwebview";
 import { ConfigService, configPrefix } from "./configservice";
 import {
     VSCodeHost,
@@ -101,22 +102,19 @@ export function activate(context: vscode.ExtensionContext): void {
         objectContentDecorator,
     );
 
-    // Register the "Second Life" tree view in Explorer
-    const objectExplorerProvider = new ObjectExplorerProvider(
-        context.extensionPath,
+    // Register the "Second Life" webview in Explorer
+    const objectExplorerWebview = new ObjectExplorerWebviewProvider(
+        context.extensionUri,
         () => synchService.isConnected(),
-        synchService.onDidChangeConnectionState
+        synchService.onDidChangeConnectionState,
+        () => synchService.getWebSocket(),
     );
-    const objectTreeView = vscode.window.createTreeView("slInworldExplorer", {
-        treeDataProvider: objectExplorerProvider,
-    });
-
-    // Set initial title
-    objectTreeView.title = synchService.isConnected()
-        ? "Second Life (connected)"
-        : "Second Life (disconnected)";
-
-    context.subscriptions.push(objectTreeView, objectExplorerProvider);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(ObjectExplorerWebviewProvider.viewType, objectExplorerWebview),
+        objectExplorerWebview,
+        synchService.onDidReceiveViewerCommands((commands) =>
+            objectExplorerWebview.sendViewerCommands(commands))
+    );
 
     // Command to open sl:// items from the tree view
     context.subscriptions.push(
@@ -304,13 +302,10 @@ export function activate(context: vscode.ExtensionContext): void {
         })
     );
 
-    // Track connection state for UI visibility and tree title
+    // Track connection state for UI visibility
     context.subscriptions.push(
         synchService.onDidChangeConnectionState((connected) => {
             vscode.commands.executeCommand("setContext", "slVscodeEdit:connected", connected);
-            objectTreeView.title = connected
-                ? "Second Life (connected)"
-                : "Second Life (disconnected)";
         })
     );
     // Set initial connection state

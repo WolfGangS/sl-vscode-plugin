@@ -38,6 +38,8 @@ import {
     closeTextDocument,
 } from "./utils";
 import { maybe } from "./shared/sharedutils"; // TODO: migrate needed utilities from sharedutils if required
+import { CommandRegistry } from "./commandregistry";
+import { CommandExecuteParams, CommandListResponse } from "./viewereditwsclient";
 import { ScriptLanguage, LanguageService } from "./shared/languageservice";
 import { ScriptSync } from "./scriptsync";
 import { getLanguageConfig } from "./shared/lexer";
@@ -62,6 +64,7 @@ export class SynchService implements vscode.Disposable {
     private lastActiveChange: number = 0;
     private activeSync: ScriptSync | undefined;
     private host: HostInterface;
+    private readonly commandRegistry = new CommandRegistry();
     private initialGenerationDone: boolean = false;
     private pendingLaunchObjectId?: string;
     private pendingLaunchScriptId?: string;
@@ -71,6 +74,7 @@ export class SynchService implements vscode.Disposable {
     public viewerLanguages?: string[];
     public viewerFeatures?: { [feature: string]: boolean };
     public syntaxCacheSupported: boolean = false;
+    public commandsSupported: boolean = false;
     public syntaxId?: string;
     public agentId?: string;
     public agentName?: string;
@@ -79,6 +83,8 @@ export class SynchService implements vscode.Disposable {
 
     private _onDidChangeConnectionState = new vscode.EventEmitter<boolean>();
     readonly onDidChangeConnectionState = this._onDidChangeConnectionState.event;
+    private _onDidReceiveViewerCommands = new vscode.EventEmitter<string[]>();
+    readonly onDidReceiveViewerCommands = this._onDidReceiveViewerCommands.event;
 
     private disposables: vscode.Disposable[] = [];
 
@@ -442,6 +448,8 @@ export class SynchService implements vscode.Disposable {
                 logDebug(`[object.update] object_name=${msg.object_name}`);
                 ObjectContentService.getInstance().handleUpdate(msg);
             },
+            onCommandExecute: (params: CommandExecuteParams) => this.commandRegistry.execute(params),
+            onCommandList: (): CommandListResponse => this.commandRegistry.list(),
         };
 
         if (this.websocket && this.websocket.isConnected()) {
@@ -491,6 +499,7 @@ export class SynchService implements vscode.Disposable {
         this.syntaxId = message.syntax_id;
         this.viewerFeatures = message.features;
         this.syntaxCacheSupported = message.features?.["syntax_cache"] === true;
+        this.commandsSupported = message.features?.["commands"] === true;
 
         let challengeResponse: string | undefined = undefined;
         if (message.challenge) {
@@ -520,6 +529,7 @@ export class SynchService implements vscode.Disposable {
                 debugging: false,
                 breakpoints: false,
                 object_publish: true,
+                commands: true,
             },
         };
         return response;
@@ -536,6 +546,15 @@ export class SynchService implements vscode.Disposable {
 
         const service = LanguageService.getInstance();
         await this.refreshSyntaxCacheListIfSupported(service);
+
+        if (this.commandsSupported) {
+            this.websocket?.listCommands().then(response => {
+                console.log("[Commands] Viewer supports commands:", response.commands.map(c => c.command));
+                this._onDidReceiveViewerCommands.fire(response.commands.map(c => c.command));
+            }).catch(err => {
+                console.warn("[Commands] Failed to list viewer commands:", err);
+            });
+        }
         if (!this.checkLanguageVersion()) {
             const socket = this.getWebSocket();
             if (socket && this.syntaxId) {

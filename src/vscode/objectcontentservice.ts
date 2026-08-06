@@ -245,6 +245,20 @@ export class ObjectContentService implements vscode.Disposable {
     }
 
     /**
+     * Add a newly-created item to the local inventory cache and fire onDidChangeObjects
+     * so the tree refreshes without waiting for a server-side update push.
+     */
+    addItem(object_id: string, prim_id: string, item: ObjectInventoryItem): void {
+        const inventory = this.getInventory(object_id, prim_id);
+        if (!inventory) { return; }
+        // Avoid duplicates (in case server push arrives first)
+        if (!inventory.some((i) => i.item_id === item.item_id)) {
+            inventory.push(item);
+        }
+        this._onDidChangeObjects.fire({ type: "updated", object_id });
+    }
+
+    /**
      * Find an item by its display filename (name + extension).
      * Used by decorators that receive URIs with display names.
      */

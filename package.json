@@ -38,6 +38,7 @@
     "views": {
       "explorer": [
         {
+          "type": "webview",
           "id": "slInworldExplorer",
           "name": "Second Life (Inworld)"
         }
@@ -381,8 +382,9 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p . && npm run copy-test-data",
+    "compile": "tsc -p . && tsc -p tsconfig.webview.json && npm run copy-webview-assets && npm run copy-test-data",
     "copy-test-data": "node scripts/copy-test-data.js",
+    "copy-webview-assets": "node scripts/copy-webview-assets.js",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "lint": "eslint src",
