@@ -26,6 +26,7 @@ The Second Life External Scripting Extension transforms VS Code into a developme
 - **WebSocket Connection**: Direct communication with Second Life viewer
 - **Live Synchronization**: Real-time script editing and updates
 - **External Editing**: Edit scripts externally while maintaining viewer session
+- **Pinned Object Explorer Items**: Pin important objects in the Second Life (Inworld) explorer, keep them visible while disconnected, and auto-restore them on reconnect
 - **Configurable Networking**: Customizable WebSocket port and connection settings
 
 ### Development Tools

@@ -38,11 +38,19 @@ interface LinkedObject {
     inventory: InventoryItem[];
 }
 
+interface PinnedObjectView {
+    object_id: string;
+    object_name: string;
+    unavailableReason?: "not_found" | "error";
+}
+
 interface ExplorerState {
     objects: PublishedObject[];
+    pinnedObjects: PinnedObjectView[];
     connected: boolean;
     expanded: string[];
     filter: string;
+    pinnedObjectIds: string[];
     focusedId?: string;
 }
 
@@ -62,9 +70,11 @@ const vscode = acquireVsCodeApi();
 
 let state: ExplorerState = {
     objects: [],
+    pinnedObjects: [],
     connected: false,
     expanded: [],
     filter: "",
+    pinnedObjectIds: [],
 };
 
 const savedState = vscode.getState() as ExplorerState | undefined;
@@ -220,13 +230,15 @@ window.addEventListener("message", (event: MessageEvent) => {
     switch (message.type) {
         case "refresh":
             state.objects = message.payload["objects"] as PublishedObject[];
+            state.pinnedObjects = (message.payload["pinnedObjects"] as PinnedObjectView[]) ?? [];
             state.connected = message.payload["connected"] as boolean;
+            state.pinnedObjectIds = (message.payload["pinnedObjectIds"] as string[]) ?? [];
             render();
             break;
 
         case "connectionState":
             state.connected = message.payload["connected"] as boolean;
-            updateConnectionStatus();
+            render();
             break;
 
         case "updateItem":
@@ -253,11 +265,25 @@ function render(): void {
     renderTree();
 }
 
+function getConnectedRegionLabel(): string {
+    const region = state.objects
+        .map((o) => o.region?.trim())
+        .find((r): r is string => Boolean(r && r.length > 0));
+
+    if (!region) {
+        return "";
+    }
+
+    return ` - ${region}`;
+}
+
 function updateConnectionStatus(): void {
     const el = document.getElementById("connection-status");
     if (!el) { return; }
     if (state.connected) {
-        el.innerHTML = '<span class="status-dot connected"></span> Connected';
+        const regionSuffix = getConnectedRegionLabel();
+        el.innerHTML =
+            `<span class="status-dot connected"></span> Connected${escapeHtml(regionSuffix)}`;
         el.className = "connected";
     } else {
         el.innerHTML = '<span class="status-dot disconnected"></span> Disconnected';
@@ -270,6 +296,27 @@ function renderTree(): void {
     if (!container) { return; }
 
     if (!state.connected) {
+        const pinnedFiltered = state.filter
+            ? state.pinnedObjects.filter((obj) => obj.object_name.toLowerCase().includes(state.filter) || obj.object_id.toLowerCase().includes(state.filter))
+            : state.pinnedObjects;
+
+        if (pinnedFiltered.length > 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>Viewer disconnected</p>
+                    <p class="hint">Pinned objects are shown offline</p>
+                    <button id="btn-connect">Connect</button>
+                </div>
+                <div class="offline-pinned-list">
+                    ${pinnedFiltered.map((obj) => renderPinnedObject(obj)).join("")}
+                </div>`;
+            document.getElementById("btn-connect")?.addEventListener("click", () => {
+                vscode.postMessage({ command: "connect", payload: {} });
+            });
+            attachEventListeners();
+            return;
+        }
+
         container.innerHTML = `
             <div class="empty-state">
                 <p>Connect to viewer to see in-world objects</p>
@@ -281,7 +328,23 @@ function renderTree(): void {
         return;
     }
 
-    if (state.objects.length === 0) {
+    const expandedSet = new Set(state.expanded);
+    const filtered = state.filter
+        ? state.objects.filter((obj) => matchesFilter(obj))
+        : state.objects;
+
+    const connectedObjectIds = new Set(state.objects.map((obj) => obj.object_id));
+    const unavailablePinned = state.pinnedObjects.filter((obj) => {
+        if (connectedObjectIds.has(obj.object_id)) {
+            return false;
+        }
+        if (!state.filter) {
+            return true;
+        }
+        return obj.object_name.toLowerCase().includes(state.filter) || obj.object_id.toLowerCase().includes(state.filter);
+    });
+
+    if (filtered.length === 0 && unavailablePinned.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <p>No objects explored</p>
@@ -290,11 +353,9 @@ function renderTree(): void {
         return;
     }
 
-    const expandedSet = new Set(state.expanded);
-    const filtered = state.filter
-        ? state.objects.filter((obj) => matchesFilter(obj))
-        : state.objects;
-    container.innerHTML = filtered.map((obj) => renderObject(obj, expandedSet)).join("");
+    container.innerHTML =
+        filtered.map((obj) => renderObject(obj, expandedSet)).join("") +
+        unavailablePinned.map((obj) => renderPinnedObject(obj)).join("");
     attachEventListeners();
     restoreFocus();
 }
@@ -366,19 +427,49 @@ function matchesFilter(obj: PublishedObject): boolean {
 function renderObject(obj: PublishedObject, expandedSet: Set<string>): string {
     const isExpanded = expandedSet.has(obj.object_id);
     const hasLinkedPrims = obj.linked_objects?.some((lo) => lo.inventory.length > 0) ?? false;
+    const isPinned = state.pinnedObjectIds.includes(obj.object_id);
+    const pinTitle = isPinned ? "Unpin object" : "Pin object";
     const iconClass = hasLinkedPrims ? "file-icon-object-multi" : "file-icon-object";
     return `
         <div class="tree-node object"
              data-object-id="${obj.object_id}">
             <div class="node-header" data-toggle="${obj.object_id}"
                  title="${[obj.object_name, obj.object_description].filter(Boolean).join('\n')}">
-                <span class="expand-icon">${isExpanded ? "\u25BC" : "\u25BA"}</span>
+                <span class="expand-icon">${isExpanded ? "\u25BC" : "\u25B6"}</span>
                 <span class="file-icon ${iconClass}"></span>
                 <span class="label">${escapeHtml(obj.object_name)}</span>
-                <button class="action-btn more" title="More actions">\u22EE</button>
+                <button class="action-btn more" title="More actions" aria-label="More actions">\u22EE</button>
+                <button class="action-btn pin-object" title="${pinTitle}" aria-label="${pinTitle}">
+                    <span class="codicon ${isPinned ? "codicon-pinned" : "codicon-pin"}" aria-hidden="true"></span>
+                </button>
             </div>
-            ${obj.region ? `<div class="node-meta">${escapeHtml(obj.region)}</div>` : ""}
+            ${obj.object_description ? `<div class="node-meta">${escapeHtml(obj.object_description)}</div>` : ""}
             ${isExpanded ? renderObjectContents(obj, expandedSet) : ""}
+        </div>`;
+}
+
+function renderPinnedObject(obj: PinnedObjectView): string {
+    const isPinned = state.pinnedObjectIds.includes(obj.object_id);
+    const pinTitle = isPinned ? "Unpin object" : "Pin object";
+    const unavailableError = state.connected && obj.unavailableReason === "error";
+    const rowClass = unavailableError
+        ? "tree-node object disconnected unavailable-error"
+        : "tree-node object disconnected";
+    const metaText = unavailableError ? "Pinned object (unavailable)" : "Pinned object (offline)";
+    return `
+        <div class="${rowClass}"
+             data-object-id="${obj.object_id}">
+            <div class="node-header" title="${obj.object_name} (offline)">
+                <span class="expand-icon"></span>
+                <span class="file-icon file-icon-object"></span>
+                <span class="label">${escapeHtml(obj.object_name)}</span>
+                ${unavailableError ? '<span class="perm-icons"><span class="perm-icon perm-icon-no-mod" title="No modify / inaccessible"></span></span>' : ""}
+                <button class="action-btn more" title="More actions" aria-label="More actions" disabled aria-disabled="true">\u22EE</button>
+                <button class="action-btn pin-object" title="${pinTitle}" aria-label="${pinTitle}">
+                    <span class="codicon ${isPinned ? "codicon-pinned" : "codicon-pin"}" aria-hidden="true"></span>
+                </button>
+            </div>
+            <div class="node-meta">${metaText}</div>
         </div>`;
 }
 
@@ -400,10 +491,11 @@ function renderLinkedPrim(object_id: string, lo: LinkedObject, expandedSet: Set<
              data-prim-id="${lo.link_id}">
             <div class="node-header" data-toggle="${lo.link_id}"
                  title="${[lo.link_name, `Link #${lo.link_number}`, lo.link_description].filter(Boolean).join('\n')}">
-                <span class="expand-icon">${isExpanded ? "\u25BC" : "\u25BA"}</span>
+                <span class="expand-icon">${isExpanded ? "\u25BC" : "\u25B6"}</span>
                 <span class="file-icon file-icon-object"></span>
                 <span class="label">${escapeHtml(lo.link_name)} (link #${lo.link_number})</span>
             </div>
+            ${lo.link_description ? `<div class="node-meta">${escapeHtml(lo.link_description)}</div>` : ""}
             ${isExpanded ? `<div class="children">${[...lo.inventory].sort((a, b) => itemDisplayName(a).localeCompare(itemDisplayName(b))).map((item) => renderItem(object_id, lo.link_id, item)).join("")}</div>` : ""}
         </div>`;
 }
@@ -455,7 +547,7 @@ function attachEventListeners(): void {
         });
     });
 
-    // Open item on single click as preview, double-click to pin
+    // Open item on single click as preview, double-click for full editor
     document.querySelectorAll<HTMLElement>(".item .node-header").forEach((el) => {
         el.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -497,6 +589,18 @@ function attachEventListeners(): void {
                     running: !running,
                 },
             });
+        });
+    });
+
+    // Pin/unpin (provider-authoritative)
+    document.querySelectorAll<HTMLElement>(".action-btn.pin-object").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const objectEl = btn.closest<HTMLElement>(".tree-node.object");
+            if (!objectEl) { return; }
+            const object_id = objectEl.dataset["objectId"];
+            if (!object_id) { return; }
+            vscode.postMessage({ command: "togglePinObject", payload: { object_id } });
         });
     });
 
@@ -856,6 +960,11 @@ function beginRenameObject(nodeEl: HTMLElement): void {
 }
 
 function showObjectMenu(anchor: MenuAnchor, objectEl: HTMLElement): void {
+    // Unavailable/disconnected pinned objects should not expose object actions.
+    if (objectEl.classList.contains("disconnected")) {
+        return;
+    }
+
     const object_id = objectEl.dataset["objectId"]!;
 
     showMenu(anchor, [

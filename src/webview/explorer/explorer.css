@@ -159,11 +159,11 @@ body {
 }
 
 .expand-icon {
-    width: 16px;
+    width: 18px;
     text-align: center;
-    font-size: 10px;
+    font-size: 13px;
     color: var(--vscode-foreground);
-    opacity: 0.7;
+    opacity: 0.9;
     flex-shrink: 0;
 }
 
@@ -227,6 +227,50 @@ body {
     padding-left: var(--indent);
 }
 
+.offline-pinned-list {
+    padding-bottom: var(--spacing-sm);
+}
+
+.tree-node.object.disconnected .node-header {
+    color: var(--vscode-disabledForeground);
+    cursor: default;
+}
+
+.tree-node.object.disconnected .node-header:hover {
+    background: transparent;
+}
+
+.tree-node.object.disconnected .node-meta,
+.tree-node.object.disconnected .expand-icon,
+.tree-node.object.disconnected .label {
+    color: var(--vscode-disabledForeground);
+}
+
+.tree-node.object.disconnected .file-icon {
+    opacity: 0.6;
+}
+
+.tree-node.object.disconnected .action-btn.more {
+    opacity: 0.35 !important;
+    pointer-events: none;
+}
+
+.tree-node.object.disconnected .action-btn.pin-object {
+    opacity: 0.9;
+    pointer-events: auto;
+}
+
+.tree-node.object.disconnected.unavailable-error .node-header,
+.tree-node.object.disconnected.unavailable-error .node-meta,
+.tree-node.object.disconnected.unavailable-error .expand-icon,
+.tree-node.object.disconnected.unavailable-error .label {
+    color: var(--vscode-errorForeground);
+}
+
+.tree-node.object.disconnected.unavailable-error .file-icon {
+    opacity: 0.85;
+}
+
 /* Running indicator */
 .running-indicator {
     width: 10px;
@@ -263,6 +307,17 @@ body {
     opacity: 1 !important;
 }
 
+/* Pin button icon in object row */
+.action-btn.pin-object {
+    opacity: 0.8;
+    min-width: 18px;
+    line-height: 1;
+}
+
+.action-btn.pin-object .codicon {
+    font-size: 14px;
+}
+
 /* Permission indicators */
 .perm-icons {
     display: flex;
@@ -288,6 +343,18 @@ body {
 /* Play/stop button — always visible, not hover-only */
 .action-btn.toggle-run {
     opacity: 0.6;
+    min-width: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Stop glyph is visually smaller than the play glyph at same font size */
+.action-btn.toggle-run[data-running="true"] {
+    transform: scale(1.45);
+    transform-origin: center;
+    font-weight: 700;
 }
 
 .node-header:hover .action-btn.toggle-run {

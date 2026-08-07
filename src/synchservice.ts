@@ -46,6 +46,7 @@ import { getLanguageConfig } from "./shared/lexer";
 import { HostInterface } from "./interfaces/hostinterface";
 import { SyncedFileDecorator } from "./vscode/SyncedFileDecorator";
 import { ObjectContentService } from "./vscode/objectcontentservice";
+import { ObjectPinStore } from "./vscode/objectpinstore";
 import { SL_SCHEME, SL_AUTHORITY, displayName, itemUri } from "./vscode/objectcontentprovider";
 
 /** PERM_MODIFY bit from viewer LLPermissions */
@@ -579,6 +580,7 @@ export class SynchService implements vscode.Disposable {
 
         await this.handleLaunchParams();
         await this.syncPublishedObjects();
+        await this.restorePinnedObjects();
     }
 
     private onDisconnect(params: SessionDisconnect): void {
@@ -1240,6 +1242,40 @@ export class SynchService implements vscode.Disposable {
                 }
             } catch (err) {
                 logDebug(`[requestWorkspaceObjects] error requesting ${object_id}: ${err}`);
+            }
+        }
+    }
+
+    private async restorePinnedObjects(): Promise<void> {
+        if (!this.websocket?.isConnected()) {
+            return;
+        }
+
+        const service = ObjectContentService.getInstance();
+        const pinStore = ObjectPinStore.getInstance();
+        const pinnedObjectIds = await pinStore.getPinnedObjectIds();
+
+        for (const object_id of pinnedObjectIds) {
+            if (!object_id || service.hasObject(object_id)) {
+                continue;
+            }
+
+            try {
+                const result = await this.websocket.requestObject({ object_id });
+                if (result.object) {
+                    service.handlePublish({ object: result.object });
+                    logDebug(`[restorePinnedObjects] restored ${result.object.object_id} (${result.object.object_name})`);
+                } else if (result.success === false) {
+                    logDebug(
+                        `[restorePinnedObjects] viewer rejected ${object_id}: ${result.message ?? "unknown"}`
+                    );
+                } else {
+                    logDebug(
+                        `[restorePinnedObjects] no object payload returned for ${object_id}`
+                    );
+                }
+            } catch (err) {
+                logDebug(`[restorePinnedObjects] error requesting ${object_id}: ${err}`);
             }
         }
     }
