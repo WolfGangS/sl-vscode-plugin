@@ -35,6 +35,7 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
     private readonly _service: ObjectContentService;
     private readonly _pinStore: ObjectPinStore;
     private readonly _disposables: vscode.Disposable[] = [];
+    private _connected: boolean;
     private readonly _pinnedUnavailableCache = new Map<string, { reason: "not_found" | "error"; checkedAt: number }>();
 
     constructor(
@@ -46,11 +47,16 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
         this._extensionUri = extensionUri;
         this._service = ObjectContentService.getInstance();
         this._pinStore = ObjectPinStore.getInstance();
+        this._connected = this.isConnected();
 
         this._disposables.push(
             this._service.onDidChangeObjects(() => void this._refresh()),
             this._service.onDidChangeRunningState((e) => this._updateItem(e)),
-            onConnectionChange(() => this._updateConnectionState())
+            onConnectionChange((connected) => {
+                this._connected = connected;
+                this._updateConnectionState();
+                void this._refresh();
+            })
         );
     }
 
@@ -100,7 +106,7 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
             });
         }
 
-        if (this.isConnected()) {
+        if (this._connected) {
             const client = this.getWebSocket();
             if (client) {
                 await this._annotatePinnedAvailability(pinnedObjects, objects, client);
@@ -111,7 +117,7 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
             type: "refresh",
             payload: {
                 objects,
-                connected: this.isConnected(),
+                connected: this._connected,
                 pinnedObjectIds,
                 pinnedObjects,
             },
@@ -189,7 +195,7 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
         if (!this._view) { return; }
         this._view.webview.postMessage({
             type: "connectionState",
-            payload: { connected: this.isConnected() },
+            payload: { connected: this._connected },
         });
     }
 

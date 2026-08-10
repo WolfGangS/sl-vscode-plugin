@@ -66,6 +66,7 @@ export class SynchService implements vscode.Disposable {
     private websocket: ViewerEditWSClient | undefined;
     private handshakeResolve?: (value: boolean, message?: string) => void;
     private handshakePromise?: Promise<{ success: boolean; message: string }>;
+    private sessionConnected: boolean = false;
     private lastActiveChange: number = 0;
     private activeSync: ScriptSync | undefined;
     private host: HostInterface;
@@ -409,15 +410,8 @@ export class SynchService implements vscode.Disposable {
             }
         }
 
-        if (this.activeSyncs.size === 0) {
-            // There is nothing being tracked, close the websocket connection
-            if (this.websocket) {
-                if (this.websocket.isConnected()) {
-                    this.websocket.disconnect();
-                }
-                this.websocket.dispose();
-                this.websocket = undefined;
-            }
+        if (this.activeSyncs.size === 0 && this.sessionConnected) {
+            // Keep the viewer session alive for object explorer usage even without script syncs.
         }
         vscode.commands.executeCommand(
             "setContext",
@@ -458,8 +452,19 @@ export class SynchService implements vscode.Disposable {
             onCommandList: (): CommandListResponse => this.commandRegistry.list(),
         };
 
-        if (this.websocket && this.websocket.isConnected()) {
+        if (this.sessionConnected) {
             return true;
+        }
+
+        if (this.handshakePromise) {
+            const pending = await this.handshakePromise;
+            return pending.success;
+        }
+
+        if (this.websocket && this.websocket.isConnected()) {
+            this.websocket.disconnect();
+            this.websocket.dispose();
+            this.websocket = undefined;
         }
 
         const handshake: Promise<{ success: boolean; message?: string }> =
@@ -581,7 +586,7 @@ export class SynchService implements vscode.Disposable {
             this.handshakeResolve(true, "Connected");
         }
 
-        this._onDidChangeConnectionState.fire(true);
+        this.setSessionConnected(true);
 
         // Start periodic ping timer for connection health monitoring
         this.websocket?.startPingTimer();
@@ -599,6 +604,7 @@ export class SynchService implements vscode.Disposable {
         showStatusMessage(
             `Second Life viewer disconnected: ${message} (reason ${reason})`,
         );
+        this.setSessionConnected(false);
     }
 
     private onConnectionClosed(): void {
@@ -610,7 +616,7 @@ export class SynchService implements vscode.Disposable {
             this.handshakeResolve(false, "Connection closed");
         }
 
-        this._onDidChangeConnectionState.fire(false);
+        this.setSessionConnected(false);
         // Collapse explorer folders instead of removing tracked objects
         vscode.commands.executeCommand("workbench.files.action.collapseExplorerFolders");
     }
@@ -1068,7 +1074,7 @@ export class SynchService implements vscode.Disposable {
     }
 
     public isConnected(): boolean {
-        return this.websocket?.isConnected() ?? false;
+        return this.sessionConnected;
     }
 
     /**
@@ -1087,10 +1093,21 @@ export class SynchService implements vscode.Disposable {
             if (this.websocket.isConnected()) {
                 this.websocket.disconnect();
             }
+            this.setSessionConnected(false);
             this.websocket.dispose();
             this.websocket = undefined;
         }
-        this._onDidChangeConnectionState.fire(false);
+    }
+
+    private setSessionConnected(connected: boolean): void {
+        if (this.sessionConnected === connected) {
+            return;
+        }
+        this.sessionConnected = connected;
+        this._onDidChangeConnectionState.fire(connected);
+        if (!connected) {
+            this.handshakeResolve?.(false, "Disconnected");
+        }
     }
 
     /**
