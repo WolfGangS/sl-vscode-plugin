@@ -39,7 +39,11 @@ import {
 } from "./utils";
 import { maybe } from "./shared/sharedutils"; // TODO: migrate needed utilities from sharedutils if required
 import { CommandRegistry } from "./commandregistry";
-import { CommandExecuteParams, CommandListResponse } from "./viewereditwsclient";
+import {
+    CommandExecuteParams,
+    CommandExecuteResponse,
+    CommandListResponse,
+} from "./viewereditwsclient";
 import { ScriptLanguage, LanguageService } from "./shared/languageservice";
 import { ScriptSync } from "./scriptsync";
 import { getLanguageConfig } from "./shared/lexer";
@@ -449,7 +453,8 @@ export class SynchService implements vscode.Disposable {
                 logDebug(`[object.update] object_name=${msg.object_name}`);
                 ObjectContentService.getInstance().handleUpdate(msg);
             },
-            onCommandExecute: (params: CommandExecuteParams) => this.commandRegistry.execute(params),
+            onCommandExecute: (params: CommandExecuteParams): Promise<CommandExecuteResponse> =>
+                this.commandRegistry.execute(params),
             onCommandList: (): CommandListResponse => this.commandRegistry.list(),
         };
 
@@ -556,17 +561,20 @@ export class SynchService implements vscode.Disposable {
                 console.warn("[Commands] Failed to list viewer commands:", err);
             });
         }
-        if (!this.checkLanguageVersion()) {
-            const socket = this.getWebSocket();
-            if (socket && this.syntaxId) {
-                const promise = service.changeSyntaxVersion(
-                    this.syntaxId,
-                    socket,
-                    false,
-                    this.syntaxCacheSupported,
-                );
-                showStatusMessage("Updating to latest language definitions...", promise);
-            }
+        const socket = this.getWebSocket();
+        const languageMatches = this.checkLanguageVersion() === true;
+        let hasViewerSyntaxFiles = true;
+        if (this.syntaxCacheSupported && this.syntaxId) {
+            hasViewerSyntaxFiles = await service.hasCachedViewerSyntaxFiles(this.syntaxId);
+        }
+        if ((!languageMatches || !hasViewerSyntaxFiles) && socket && this.syntaxId) {
+            const promise = service.changeSyntaxVersion(
+                this.syntaxId,
+                socket,
+                false,
+                this.syntaxCacheSupported,
+            );
+            showStatusMessage("Updating to latest language definitions...", promise);
         }
 
         if (this.handshakeResolve) {
@@ -620,7 +628,11 @@ export class SynchService implements vscode.Disposable {
             this.syntaxId = params.id;
             const service = LanguageService.getInstance();
             await this.refreshSyntaxCacheListIfSupported(service);
-            if (!this.checkLanguageVersion()) {
+            let hasViewerSyntaxFiles = true;
+            if (this.syntaxCacheSupported) {
+                hasViewerSyntaxFiles = await service.hasCachedViewerSyntaxFiles(params.id);
+            }
+            if (!this.checkLanguageVersion() || !hasViewerSyntaxFiles) {
                 const socket = this.getWebSocket();
                 if (socket) {
                     const promise = service.changeSyntaxVersion(

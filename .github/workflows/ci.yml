@@ -24,6 +24,12 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Install autobuild
+      run: npm run bootstrap:autobuild
+
+    - name: Sync definition artifacts
+      run: npm run definitions:sync
+
     - name: Run linter
       run: npm run lint
 
@@ -54,6 +60,12 @@ jobs:
 
     - name: Install dependencies
       run: npm install
+
+    - name: Install autobuild
+      run: npm run bootstrap:autobuild
+
+    - name: Sync definition artifacts
+      run: npm run definitions:sync
 
     - name: Install vsce (VS Code Extension Manager)
       run: npm install -g @vscode/vsce

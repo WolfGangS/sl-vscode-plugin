@@ -381,7 +381,13 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run definitions:validate && npm run compile",
+    "bootstrap:autobuild": "python -m pip install autobuild",
+    "definitions:fetch": "autobuild install --config-file autobuild.xml --install-dir .autobuild/packages lsl_definitions",
+    "definitions:stage": "node scripts/definitions-stage.js",
+    "definitions:sync": "npm run definitions:fetch && npm run definitions:stage",
+    "definitions:validate": "node scripts/definitions-validate.js",
+    "bootstrap:deps": "npm ci && npm run bootstrap:autobuild && npm run definitions:sync",
     "compile": "tsc -p . && tsc -p tsconfig.webview.json && npm run copy-webview-assets && npm run copy-test-data",
     "copy-test-data": "node scripts/copy-test-data.js",
     "copy-webview-assets": "node scripts/copy-webview-assets.js",
