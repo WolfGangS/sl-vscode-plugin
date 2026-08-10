@@ -7,6 +7,8 @@ declare const acquireVsCodeApi: () => {
     setState(state: unknown): void;
 };
 
+export {};
+
 // ============================================
 // Types
 // ============================================
@@ -84,6 +86,35 @@ if (savedState) {
 
 // Active context menu element, if any
 let activeMenu: HTMLElement | null = null;
+let menuDeactivationTimer: number | null = null;
+
+function isAnyMenuHovered(): boolean {
+    return !!document.querySelector(".context-menu:hover");
+}
+
+function stopMenuDeactivationWatchdog(): void {
+    if (menuDeactivationTimer !== null) {
+        window.clearInterval(menuDeactivationTimer);
+        menuDeactivationTimer = null;
+    }
+}
+
+function maybeCloseMenuOnDeactivation(): void {
+    if (!activeMenu) {
+        stopMenuDeactivationWatchdog();
+        return;
+    }
+    if (!document.hasFocus() && !isAnyMenuHovered()) {
+        closeMenu();
+    }
+}
+
+function startMenuDeactivationWatchdog(): void {
+    stopMenuDeactivationWatchdog();
+    menuDeactivationTimer = window.setInterval(() => {
+        maybeCloseMenuOnDeactivation();
+    }, 100);
+}
 
 let viewerCommands = new Set<string>();
 
@@ -108,6 +139,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // Dismiss context menu when clicking outside or pressing Escape
     document.addEventListener("click", () => closeMenu());
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeMenu(); } });
+
+    // Fast-path close for common deactivation events.
+    window.addEventListener("blur", () => {
+        window.setTimeout(() => {
+            maybeCloseMenuOnDeactivation();
+        }, 0);
+    });
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+            maybeCloseMenuOnDeactivation();
+        }
+    });
 
     // Keyboard focus tracking
     document.getElementById("tree-container")?.addEventListener("mousedown", () => { treeHasFocus = true; });
@@ -688,6 +731,7 @@ function showMenu(anchor: MenuAnchor, entries: MenuEntry[]): void {
 
     document.body.appendChild(menu);
     activeMenu = menu;
+    startMenuDeactivationWatchdog();
 
     // Position at anchor; flip if out of viewport
     let top: number, left: number;
@@ -715,6 +759,7 @@ function closeMenu(): void {
         activeMenu.remove();
         activeMenu = null;
     }
+    stopMenuDeactivationWatchdog();
 }
 
 

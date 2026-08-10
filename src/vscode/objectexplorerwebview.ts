@@ -463,7 +463,7 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
         <input type="text" id="filter-input" placeholder="Filter..." />
     </div>
     <div id="tree-container"></div>
-    <script nonce="${nonce}" src="${scriptUri}"></script>
+    <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
     }
