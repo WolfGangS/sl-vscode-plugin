@@ -52,6 +52,7 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
         this._disposables.push(
             this._service.onDidChangeObjects(() => void this._refresh()),
             this._service.onDidChangeRunningState((e) => this._updateItem(e)),
+            this._service.onDidChangeScriptVm((e) => this._updateItemVm(e)),
             onConnectionChange((connected) => {
                 this._connected = connected;
                 this._updateConnectionState();
@@ -207,6 +208,11 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
         });
     }
 
+    private _updateItemVm(e: { item_id: string; vm: string }): void {
+        if (!this._view) { return; }
+        this._view.webview.postMessage({ type: "updateItemVM", payload: { item_id: e.item_id, vm: e.vm } });
+    }
+
     public sendViewerCommands(commands: string[]): void {
         if (!this._view) { return; }
         this._view.webview.postMessage({ type: "viewerCommands", payload: { commands } });
@@ -248,6 +254,13 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
                 } catch {
                     // Viewer will report error via its own channel
                 }
+                break;
+            }
+            case "setScriptVM": {
+                const { object_id, prim_id, item_id, vm } = message.payload as {
+                    object_id: string; prim_id: string; item_id: string; vm: string;
+                };
+                this._service.setScriptVm(object_id, prim_id, item_id, vm);
                 break;
             }
             case "unpublishObject": {

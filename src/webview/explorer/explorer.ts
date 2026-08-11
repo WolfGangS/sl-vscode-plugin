@@ -28,6 +28,7 @@ interface InventoryItem {
     description?: string;
     type: "script" | "notecard";
     subtype?: number;
+    vm?: string;
     running?: boolean;
     permissions?: { owner: number; next_owner: number };
 }
@@ -87,6 +88,7 @@ if (savedState) {
 // Active context menu element, if any
 let activeMenu: HTMLElement | null = null;
 let menuDeactivationTimer: number | null = null;
+let activeSubmenu: HTMLElement | null = null;
 
 function isAnyMenuHovered(): boolean {
     return !!document.querySelector(".context-menu:hover");
@@ -291,6 +293,10 @@ window.addEventListener("message", (event: MessageEvent) => {
             );
             break;
 
+        case "updateItemVM":
+            updateItemVmState(message.payload["item_id"] as string, message.payload["vm"] as string);
+            break;
+
         case "viewerCommands":
             viewerCommands = new Set<string>(message.payload["commands"] as string[]);
             break;
@@ -417,6 +423,17 @@ function updateItemRunningState(item_id: string, running: boolean): void {
         toggleBtn.title = running ? "Stop script" : "Start script";
     }
     itemEl.classList.toggle("running", running);
+}
+
+function updateItemVmState(item_id: string, vm: string): void {
+    const itemEl = document.querySelector<HTMLElement>(`[data-item="${item_id}"]`);
+    if (itemEl) { itemEl.dataset["vm"] = vm; }
+    for (const obj of state.objects) {
+        const patch = (inv: InventoryItem[]) => { const i = inv.find((x) => x.item_id === item_id); if (i) { i.vm = vm; } };
+        patch(obj.inventory);
+        for (const lo of obj.linked_objects ?? []) { patch(lo.inventory); }
+    }
+    saveState();
 }
 
 function escapeHtml(text: string): string {
@@ -550,8 +567,8 @@ function renderItem(object_id: string, prim_id: string, item: InventoryItem): st
     const uri = itemUri(object_id, prim_id, item);
     const canModify = !item.permissions || (item.permissions.owner & PERM_MODIFY) !== 0;
     const permIcons = permissionIcons(item);
-    const vmLabel = item.subtype === 1 ? "Luau Script" : "LSL Script";
-    const typeLabel = item.type === "notecard" ? "Notecard" : vmLabel;
+    const languageLabel = item.subtype === 1 ? "Luau Script" : "LSL Script";
+    const typeLabel = item.type === "notecard" ? "Notecard" : languageLabel;
 
     return `
         <div class="tree-node item${item.running ? " running" : ""}"
@@ -560,6 +577,8 @@ function renderItem(object_id: string, prim_id: string, item: InventoryItem): st
              data-item="${item.item_id}"
              data-uri="${uri}"
              data-type="${item.type}"
+             data-subtype="${item.subtype ?? 0}"
+             data-vm="${item.vm ?? ""}"
              data-can-modify="${canModify}">
             <div class="node-header item-row"
                  title="${[label, typeLabel, item.description].filter(Boolean).join('\n')}">
@@ -699,6 +718,7 @@ function restoreFocus(): void {
 
 type MenuEntry =
     | { label: string; action: () => void; disabled?: boolean }
+    | { label: string; submenu: MenuEntry[] }
     | { separator: true };
 
 type MenuAnchor = HTMLElement | { x: number; y: number };
@@ -713,11 +733,19 @@ function showMenu(anchor: MenuAnchor, entries: MenuEntry[]): void {
         if ("separator" in entry) {
             const sep = document.createElement("div");
             sep.className = "menu-separator";
+            sep.addEventListener("mouseenter", () => closeSubmenu());
             menu.appendChild(sep);
+        } else if ("submenu" in entry) {
+            const btn = document.createElement("button");
+            btn.className = "menu-item has-submenu";
+            btn.textContent = entry.label + " \u25B6";
+            btn.addEventListener("mouseenter", () => showSubmenu(btn, entry.submenu));
+            menu.appendChild(btn);
         } else {
             const btn = document.createElement("button");
             btn.className = "menu-item" + (entry.disabled ? " disabled" : "");
             btn.textContent = entry.label;
+            btn.addEventListener("mouseenter", () => closeSubmenu());
             if (!entry.disabled) {
                 btn.addEventListener("click", (e) => {
                     e.stopPropagation();
@@ -759,7 +787,48 @@ function closeMenu(): void {
         activeMenu.remove();
         activeMenu = null;
     }
+    closeSubmenu();
     stopMenuDeactivationWatchdog();
+}
+
+function closeSubmenu(): void {
+    if (activeSubmenu) {
+        activeSubmenu.remove();
+        activeSubmenu = null;
+    }
+}
+
+function showSubmenu(parentEl: HTMLElement, entries: MenuEntry[]): void {
+    closeSubmenu();
+    const sub = document.createElement("div");
+    sub.className = "context-menu";
+    for (const entry of entries) {
+        if ("separator" in entry) {
+            const sep = document.createElement("div");
+            sep.className = "menu-separator";
+            sub.appendChild(sep);
+        } else if (!("submenu" in entry)) {
+            const btn = document.createElement("button");
+            btn.className = "menu-item" + (entry.disabled ? " disabled" : "");
+            btn.textContent = entry.label;
+            if (!entry.disabled) {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    closeMenu();
+                    entry.action();
+                });
+            }
+            sub.appendChild(btn);
+        }
+    }
+    document.body.appendChild(sub);
+    activeSubmenu = sub;
+    const rect = parentEl.getBoundingClientRect();
+    sub.style.top = `${rect.top}px`;
+    sub.style.left = `${rect.right}px`;
+    const sr = sub.getBoundingClientRect();
+    if (sr.right > window.innerWidth) { sub.style.left = `${rect.left - sr.width}px`; }
+    if (sr.bottom > window.innerHeight) { sub.style.top = `${rect.bottom - sr.height}px`; }
 }
 
 
@@ -773,6 +842,8 @@ function showItemMenu(anchor: MenuAnchor, itemEl: HTMLElement): void {
     const uri = itemEl.dataset["uri"]!;
     const toggleBtn = itemEl.querySelector<HTMLElement>(".toggle-run");
     const running = toggleBtn?.dataset["running"] === "true";
+    const subtype = parseInt(itemEl.dataset["subtype"] ?? "0", 10);
+    const currentVm = itemEl.dataset["vm"] ?? "";
 
     const entries: MenuEntry[] = [
         {
@@ -797,6 +868,25 @@ function showItemMenu(anchor: MenuAnchor, itemEl: HTMLElement): void {
                 command: "restartScript",
                 payload: { object_id, prim_id, item_id },
             }),
+        });
+        entries.push({ separator: true });
+        const isLuauScript = subtype === 1;
+        entries.push({
+            label: "Select VM",
+            submenu: (
+                [
+                    { vm: "lsl2", label: "LSL2" },
+                    { vm: "mono", label: "Mono" },
+                    { vm: "luau", label: "Luau" },
+                ] as Array<{ vm: string; label: string }>
+            ).map(({ vm, label }) => ({
+                label: label + (currentVm === vm ? " \u2713" : ""),
+                disabled: isLuauScript && vm !== "luau",
+                action: () => vscode.postMessage({
+                    command: "setScriptVM",
+                    payload: { object_id, prim_id, item_id, vm },
+                }),
+            })),
         });
     }
 

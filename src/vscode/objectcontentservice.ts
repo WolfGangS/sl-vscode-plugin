@@ -13,6 +13,7 @@ import {
     ObjectUnpublishMessage,
     ObjectUpdateMessage,
     InventoryChanges,
+    ScriptVM,
 } from "./objectcontentinterfaces";
 
 // ============================================
@@ -44,6 +45,14 @@ export interface ScriptRunningChangeEvent {
     running: boolean;
 }
 
+/** Fired when a script's VM assignment changes locally */
+export interface ScriptVmChangeEvent {
+    object_id: string;
+    prim_id: string;
+    item_id: string;
+    vm: string;
+}
+
 // ============================================
 // Service
 // ============================================
@@ -62,10 +71,13 @@ export class ObjectContentService implements vscode.Disposable {
     private _onDidChangeRunningState = new vscode.EventEmitter<ScriptRunningChangeEvent>();
     readonly onDidChangeRunningState = this._onDidChangeRunningState.event;
 
+    private _onDidChangeScriptVm = new vscode.EventEmitter<ScriptVmChangeEvent>();
+    readonly onDidChangeScriptVm = this._onDidChangeScriptVm.event;
+
     private disposables: vscode.Disposable[] = [];
 
     private constructor() {
-        this.disposables.push(this._onDidChangeObjects, this._onDidChangeContent, this._onDidChangeRunningState);
+        this.disposables.push(this._onDidChangeObjects, this._onDidChangeContent, this._onDidChangeRunningState, this._onDidChangeScriptVm);
     }
 
     static getInstance(): ObjectContentService {
@@ -291,6 +303,13 @@ export class ObjectContentService implements vscode.Disposable {
             item.running = running;
             this._onDidChangeRunningState.fire({ object_id, prim_id, item_id, running });
         }
+    }
+
+    setScriptVm(object_id: string, prim_id: string, item_id: string, vm: string): void {
+        const item = this.getItem(object_id, prim_id, item_id);
+        if (!item || item.type !== "script" || item.vm === vm) { return; }
+        item.vm = vm as ScriptVM;
+        this._onDidChangeScriptVm.fire({ object_id, prim_id, item_id, vm });
     }
 
     // ============================================

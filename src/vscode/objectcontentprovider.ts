@@ -375,6 +375,10 @@ export class ObjectContentProvider implements vscode.FileSystemProvider, vscode.
                 }, 0);
             }),
 
+            service.onDidChangeScriptVm(({ object_id, prim_id, item_id, vm }) => {
+                void this._saveOnVmChange(object_id, prim_id, item_id, vm);
+            }),
+
             // Forward tree changes (added/removed objects) as directory changes
             service.onDidChangeObjects((event) => {
                 const { type, object_id } = event;
@@ -459,6 +463,34 @@ export class ObjectContentProvider implements vscode.FileSystemProvider, vscode.
 
             this._onDidChangeFile,
         );
+    }
+
+    private async _saveOnVmChange(object_id: string, prim_id: string, item_id: string, vm: string): Promise<void> {
+        const client = this.getClient();
+        if (!client) { return; }
+        try {
+            let content: string;
+            const cached = this.service.getCachedContent(object_id, item_id);
+            if (cached) {
+                content = Buffer.from(cached.content).toString("utf-8");
+            } else {
+                const fetched = await client.getObjectContent({ prim_id, item_id });
+                if (!fetched.success) { return; }
+                content = fetched.encoding === "base64"
+                    ? Buffer.from(fetched.content, "base64").toString("utf-8")
+                    : fetched.content;
+            }
+            const item = this.service.getItem(object_id, prim_id, item_id);
+            await client.saveObjectContent({
+                prim_id,
+                item_id,
+                content,
+                vm: vm as ObjectContentSaveVM,
+                running: item?.running,
+            });
+        } catch {
+            // Viewer will report save/compile errors
+        }
     }
 
     dispose(): void {
