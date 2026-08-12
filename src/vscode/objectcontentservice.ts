@@ -306,10 +306,12 @@ export class ObjectContentService implements vscode.Disposable {
     }
 
     setScriptVm(object_id: string, prim_id: string, item_id: string, vm: string): void {
+        if (vm !== "lsl2" && vm !== "mono" && vm !== "luau") { return; }
+        const vmTyped = vm as ScriptVM;
         const item = this.getItem(object_id, prim_id, item_id);
-        if (!item || item.type !== "script" || item.vm === vm) { return; }
-        item.vm = vm as ScriptVM;
-        this._onDidChangeScriptVm.fire({ object_id, prim_id, item_id, vm });
+        if (!item || item.type !== "script" || item.vm === vmTyped) { return; }
+        item.vm = vmTyped;
+        this._onDidChangeScriptVm.fire({ object_id, prim_id, item_id, vm: vmTyped });
     }
 
     // ============================================

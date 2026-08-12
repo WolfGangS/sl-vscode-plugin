@@ -221,7 +221,22 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
     private async _handleMessage(message: { command: string; payload: Record<string, unknown> }): Promise<void> {
         switch (message.command) {
             case "openItem": {
-                const uri = vscode.Uri.parse(message.payload["uri"] as string);
+                const uriText = message.payload["uri"];
+                if (typeof uriText !== "string") { break; }
+
+                let uri: vscode.Uri;
+                try {
+                    uri = vscode.Uri.parse(uriText);
+                } catch {
+                    vscode.window.showErrorMessage("Invalid item URI.");
+                    break;
+                }
+
+                if (uri.scheme !== "sl" || uri.authority !== "objects") {
+                    vscode.window.showErrorMessage("Refusing to open non-Second Life URI from webview.");
+                    break;
+                }
+
                 const preview = message.payload["preview"] !== false;
                 await vscode.window.showTextDocument(uri, { preview, preserveFocus: false });
                 break;

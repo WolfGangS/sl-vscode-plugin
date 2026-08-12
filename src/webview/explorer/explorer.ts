@@ -495,7 +495,7 @@ function renderObject(obj: PublishedObject, expandedSet: Set<string>): string {
         <div class="tree-node object"
              data-object-id="${obj.object_id}">
             <div class="node-header" data-toggle="${obj.object_id}"
-                 title="${[obj.object_name, obj.object_description].filter(Boolean).join('\n')}">
+                 title="${escapeHtml([obj.object_name, obj.object_description].filter(Boolean).join('\n'))}">
                 <span class="expand-icon">${isExpanded ? "\u25BC" : "\u25B6"}</span>
                 <span class="file-icon ${iconClass}"></span>
                 <span class="label">${escapeHtml(obj.object_name)}</span>
