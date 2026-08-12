@@ -34,6 +34,7 @@ import {
     showWarningMessage,
     logDebug,
     logInfo,
+    logWarning,
     VSCodeHost,
     closeTextDocument,
 } from "./utils";
@@ -682,7 +683,7 @@ export class SynchService implements vscode.Disposable {
             sync.handleRuntimeDebug(message);
         }
         else {
-            console.log(`Runtime:Debug in ${message.object_name}: ${message.message}`);
+            logInfo(`Debug message on object ${message.object_name} (${message.object_id}): ${message.message}`);
         }
     }
 
@@ -694,7 +695,7 @@ export class SynchService implements vscode.Disposable {
             sync.handleRuntimeError(message);
         }
         else {
-            console.warn(`Runtime:Error in ${message.object_name}:${message.line}: ${message.error}`);
+            logWarning(`Runtime error on object ${message.object_name}:${message.line}: ${message.error}`);
         }
     }
 
