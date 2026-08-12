@@ -37,6 +37,7 @@ import {
     logWarning,
     VSCodeHost,
     closeTextDocument,
+    vscodeUriToStringUri,
 } from "./utils";
 import { maybe } from "./shared/sharedutils"; // TODO: migrate needed utilities from sharedutils if required
 import { CommandRegistry } from "./commandregistry";
@@ -369,7 +370,9 @@ export class SynchService implements vscode.Disposable {
         }
         const masterEditor = await SynchService.openMasterScript(masterUri);
         const sync = await this.getOrCreateSync(masterEditor.document, parsed.language);
-        sync.subscribeVirtual(slDocument.uri);
+        // openTextDocument guarantees readFile has completed for virtual fs documents
+        const loadedDoc = await vscode.workspace.openTextDocument(slDocument.uri);
+        sync.subscribeVirtual(slDocument.uri, loadedDoc.getText());
         SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, slDocument);
         this.syncedFileDecorator.refresh(masterEditor.document.uri);
         logInfo(
@@ -1173,7 +1176,8 @@ export class SynchService implements vscode.Disposable {
         if (sync) {
             await sync.handleMasterSaved();
         } else {
-            for (const sync of this.findSyncByIncludeFilePath(filePath)) {
+            const includeUri = vscodeUriToStringUri(document.uri);
+            for (const sync of this.findSyncByIncludeFilePath(includeUri)) {
                 await sync.handleMasterSaved();
             }
         }

@@ -152,12 +152,15 @@ export class ScriptSync implements vscode.Disposable {
         return true;
     }
 
-    public subscribeVirtual(uri: vscode.Uri): boolean {
+    public subscribeVirtual(uri: vscode.Uri, viewerContent?: string): boolean {
         const id = uri.toString();
         if (this.isTrackingId(id)) {
             return false; // already tracking
         }
         this.fileMappings.push({ kind: 'virtual', id, uri });
+        if (viewerContent) {
+            this.lineMappings = LineMapper.parseLineMappingsFromContent(viewerContent, this.language, new VSCodeHost());
+        }
         return true;
     }
 
