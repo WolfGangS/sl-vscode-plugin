@@ -761,7 +761,7 @@ function showMenu(anchor: MenuAnchor, entries: MenuEntry[]): void {
     activeMenu = menu;
     startMenuDeactivationWatchdog();
 
-    // Position at anchor; flip if out of viewport
+    // Position at anchor; flip then clamp to stay within all four viewport edges
     let top: number, left: number;
     if (anchor instanceof HTMLElement) {
         const rect = anchor.getBoundingClientRect();
@@ -771,15 +771,11 @@ function showMenu(anchor: MenuAnchor, entries: MenuEntry[]): void {
         top = anchor.y;
         left = anchor.x;
     }
-    menu.style.top = `${top}px`;
-    menu.style.left = `${left}px`;
     const mr = menu.getBoundingClientRect();
-    if (mr.right > window.innerWidth) {
-        menu.style.left = `${left - mr.width}px`;
-    }
-    if (mr.bottom > window.innerHeight) {
-        menu.style.top = `${top - mr.height}px`;
-    }
+    if (left + mr.width > window.innerWidth) { left -= mr.width; }
+    if (top + mr.height > window.innerHeight) { top -= mr.height; }
+    menu.style.left = `${Math.max(0, Math.min(left, window.innerWidth - mr.width))}px`;
+    menu.style.top = `${Math.max(0, Math.min(top, window.innerHeight - mr.height))}px`;
 }
 
 function closeMenu(): void {
@@ -824,11 +820,13 @@ function showSubmenu(parentEl: HTMLElement, entries: MenuEntry[]): void {
     document.body.appendChild(sub);
     activeSubmenu = sub;
     const rect = parentEl.getBoundingClientRect();
-    sub.style.top = `${rect.top}px`;
-    sub.style.left = `${rect.right}px`;
     const sr = sub.getBoundingClientRect();
-    if (sr.right > window.innerWidth) { sub.style.left = `${rect.left - sr.width}px`; }
-    if (sr.bottom > window.innerHeight) { sub.style.top = `${rect.bottom - sr.height}px`; }
+    let subLeft = rect.right;
+    let subTop = rect.top;
+    if (subLeft + sr.width > window.innerWidth) { subLeft = rect.left - sr.width; }
+    if (subTop + sr.height > window.innerHeight) { subTop = rect.bottom - sr.height; }
+    sub.style.left = `${Math.max(0, Math.min(subLeft, window.innerWidth - sr.width))}px`;
+    sub.style.top = `${Math.max(0, Math.min(subTop, window.innerHeight - sr.height))}px`;
 }
 
 
