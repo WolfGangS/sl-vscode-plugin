@@ -379,6 +379,30 @@ export class ObjectExplorerWebviewProvider implements vscode.WebviewViewProvider
                 this.getWebSocket()?.executeCommand({ command: "viewer.camera.focus", params: { object_id } });
                 break;
             }
+            case "saveBackToObjectContents": {
+                const { object_id } = message.payload as { object_id: string };
+                const socket = this.getWebSocket();
+                if (!socket) {
+                    vscode.window.showErrorMessage("Not connected to Second Life viewer.");
+                    break;
+                }
+
+                try {
+                    const response = await socket.executeCommand({
+                        command: "viewer.object.save_back_to_contents",
+                        params: { object_id },
+                    });
+                    if (!response.success) {
+                        vscode.window.showErrorMessage(response.message ?? "Failed to save object back to contents.");
+                        break;
+                    }
+                    vscode.window.showInformationMessage("Saved object back to contents.");
+                } catch (err) {
+                    vscode.window.showErrorMessage(`Failed to save object back to contents: ${err}`);
+                }
+
+                break;
+            }
             case "togglePinObject": {
                 const { object_id } = message.payload as { object_id: string };
                 if (!object_id) {

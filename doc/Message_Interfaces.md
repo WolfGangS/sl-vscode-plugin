@@ -806,6 +806,7 @@ interface PublishedObject {
   region?: string;
   owner_id?: string;
   permissions?: ObjectPermissions;
+  can_save_back?: boolean;      // Whether Save Back to Contents is currently available for this object
   inventory: ObjectInventoryItem[];      // Root prim's scripts and notecards
   linked_objects?: LinkedObject[];       // Child prims
 }
@@ -836,6 +837,7 @@ interface ObjectPublishMessage {
 **Fields:**
 
 - `object`: The full object tree being explored, including root prim inventory and all linked prim inventories.
+  - `can_save_back` (optional): Capability hint for UI actions. When `true`, the object currently supports the `viewer.object.save_back_to_contents` command.
 
 ---
 
@@ -1258,7 +1260,7 @@ interface CommandExecuteResponse {
   "id": 7,
   "params": {
     "command": "viewer.teleport",
-    "params": { "region": "Aditi", "position": [128, 128, 25] }
+    "params": { "object_id": "550e8400-e29b-41d4-a716-446655440000" }
   }
 }
 ```
@@ -1268,6 +1270,28 @@ interface CommandExecuteResponse {
   "jsonrpc": "2.0",
   "id": 7,
   "result": { "success": true }
+}
+```
+
+**Example — extension asks viewer to save object back to contents:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "command.execute",
+  "id": 9,
+  "params": {
+    "command": "viewer.object.save_back_to_contents",
+    "params": { "object_id": "550e8400-e29b-41d4-a716-446655440000" }
+  }
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "result": { "success": true, "result": { "object_id": "550e8400-e29b-41d4-a716-446655440000" } }
 }
 ```
 
@@ -1326,10 +1350,11 @@ interface CommandParamInfo {
 
 | Command | Required params | Description |
 |---------|----------------|-------------|
-| `viewer.teleport` | `region: string` | Teleport agent to a region. Optional `position: [x, y, z]`. |
+| `viewer.teleport` | `object_id: string` | Teleport agent to an in-world object. |
 | `viewer.script.recompile_all` | `object_id: string` | Recompile all scripts in an object. |
 | `viewer.script.reset_all` | `object_id: string` | Reset all scripts in an object. |
 | `viewer.camera.focus` | `object_id: string` | Move camera focus to an in-world object. |
+| `viewer.object.save_back_to_contents` | `object_id: string` | Save an in-world object back to source object contents. |
 
 **Known extension commands:**
 

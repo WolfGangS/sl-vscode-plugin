@@ -18,6 +18,7 @@ interface PublishedObject {
     object_name: string;
     object_description?: string;
     region?: string;
+    can_save_back?: boolean;
     inventory: InventoryItem[];
     linked_objects?: LinkedObject[];
 }
@@ -1099,6 +1100,10 @@ function showObjectMenu(anchor: MenuAnchor, objectEl: HTMLElement): void {
     }
 
     const object_id = objectEl.dataset["objectId"]!;
+    const objectEntry = state.objects.find((obj) => obj.object_id === object_id);
+    const canSaveBack = objectEntry?.can_save_back === true;
+    const saveBackCommandAvailable = viewerCommands.has("viewer.object.save_back_to_contents");
+    const saveBackEnabled = saveBackCommandAvailable && canSaveBack;
 
     showMenu(anchor, [
         {
@@ -1113,6 +1118,12 @@ function showObjectMenu(anchor: MenuAnchor, objectEl: HTMLElement): void {
         {
             label: "Unpublish",
             action: () => vscode.postMessage({ command: "unpublishObject", payload: { object_id } }),
+        },
+        { separator: true },
+        {
+            label: "Save Back to Contents",
+            disabled: !saveBackEnabled,
+            action: () => vscode.postMessage({ command: "saveBackToObjectContents", payload: { object_id } }),
         },
         { separator: true },
         {
