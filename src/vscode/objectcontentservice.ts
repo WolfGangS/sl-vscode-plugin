@@ -13,6 +13,7 @@ import {
     ObjectUnpublishMessage,
     ObjectUpdateMessage,
     InventoryChanges,
+    ScriptVM,
 } from "./objectcontentinterfaces";
 
 // ============================================
@@ -44,6 +45,14 @@ export interface ScriptRunningChangeEvent {
     running: boolean;
 }
 
+/** Fired when a script's VM assignment changes locally */
+export interface ScriptVmChangeEvent {
+    object_id: string;
+    prim_id: string;
+    item_id: string;
+    vm: string;
+}
+
 // ============================================
 // Service
 // ============================================
@@ -62,10 +71,13 @@ export class ObjectContentService implements vscode.Disposable {
     private _onDidChangeRunningState = new vscode.EventEmitter<ScriptRunningChangeEvent>();
     readonly onDidChangeRunningState = this._onDidChangeRunningState.event;
 
+    private _onDidChangeScriptVm = new vscode.EventEmitter<ScriptVmChangeEvent>();
+    readonly onDidChangeScriptVm = this._onDidChangeScriptVm.event;
+
     private disposables: vscode.Disposable[] = [];
 
     private constructor() {
-        this.disposables.push(this._onDidChangeObjects, this._onDidChangeContent, this._onDidChangeRunningState);
+        this.disposables.push(this._onDidChangeObjects, this._onDidChangeContent, this._onDidChangeRunningState, this._onDidChangeScriptVm);
     }
 
     static getInstance(): ObjectContentService {
@@ -245,6 +257,20 @@ export class ObjectContentService implements vscode.Disposable {
     }
 
     /**
+     * Add a newly-created item to the local inventory cache and fire onDidChangeObjects
+     * so the tree refreshes without waiting for a server-side update push.
+     */
+    addItem(object_id: string, prim_id: string, item: ObjectInventoryItem): void {
+        const inventory = this.getInventory(object_id, prim_id);
+        if (!inventory) { return; }
+        // Avoid duplicates (in case server push arrives first)
+        if (!inventory.some((i) => i.item_id === item.item_id)) {
+            inventory.push(item);
+        }
+        this._onDidChangeObjects.fire({ type: "updated", object_id });
+    }
+
+    /**
      * Find an item by its display filename (name + extension).
      * Used by decorators that receive URIs with display names.
      */
@@ -277,6 +303,15 @@ export class ObjectContentService implements vscode.Disposable {
             item.running = running;
             this._onDidChangeRunningState.fire({ object_id, prim_id, item_id, running });
         }
+    }
+
+    setScriptVm(object_id: string, prim_id: string, item_id: string, vm: string): void {
+        if (vm !== "lsl2" && vm !== "mono" && vm !== "luau") { return; }
+        const vmTyped = vm as ScriptVM;
+        const item = this.getItem(object_id, prim_id, item_id);
+        if (!item || item.type !== "script" || item.vm === vmTyped) { return; }
+        item.vm = vmTyped;
+        this._onDidChangeScriptVm.fire({ object_id, prim_id, item_id, vm: vmTyped });
     }
 
     // ============================================

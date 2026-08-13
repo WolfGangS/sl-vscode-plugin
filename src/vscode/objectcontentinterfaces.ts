@@ -79,6 +79,7 @@ export interface PublishedObject {
     region?: string;             // Region where object exists
     owner_id?: string;           // Owner UUID
     permissions?: ObjectPermissions;
+    can_save_back?: boolean;
     inventory: ObjectInventoryItem[];    // Root prim inventory (scripts and notecards only)
     linked_objects?: LinkedObject[];     // Child prims in linkset
 }

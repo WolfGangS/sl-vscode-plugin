@@ -38,6 +38,7 @@
     "views": {
       "explorer": [
         {
+          "type": "webview",
           "id": "slInworldExplorer",
           "name": "Second Life (Inworld)"
         }
@@ -380,9 +381,16 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p . && npm run copy-test-data",
+    "vscode:prepublish": "npm run definitions:validate && npm run compile",
+    "bootstrap:autobuild": "python -m pip install autobuild",
+    "definitions:fetch": "autobuild install --config-file autobuild.xml --install-dir .autobuild/packages lsl_definitions",
+    "definitions:stage": "node scripts/definitions-stage.js",
+    "definitions:sync": "npm run definitions:fetch && npm run definitions:stage",
+    "definitions:validate": "node scripts/definitions-validate.js",
+    "bootstrap:deps": "npm ci && npm run bootstrap:autobuild && npm run definitions:sync",
+    "compile": "tsc -p . && tsc -p tsconfig.webview.json && npm run copy-webview-assets && npm run copy-test-data",
     "copy-test-data": "node scripts/copy-test-data.js",
+    "copy-webview-assets": "node scripts/copy-webview-assets.js",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "lint": "eslint src",
@@ -410,6 +418,7 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "@types/ws": "^8.18.1",
+    "@vscode/codicons": "^0.0.36",
     "js-sha256": "^0.11.1",
     "js-yaml": "^4.3.0",
     "vscode-languageclient": "^9.0.1",
