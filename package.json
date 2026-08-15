@@ -382,7 +382,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run definitions:validate && npm run compile",
-    "definitions:fetch": "nide scripts/definitions-fetch.js",
+    "definitions:fetch": "node scripts/definitions-fetch.js",
     "definitions:stage": "node scripts/definitions-stage.js",
     "definitions:sync": "npm run definitions:fetch && npm run definitions:stage",
     "definitions:validate": "node scripts/definitions-validate.js",
