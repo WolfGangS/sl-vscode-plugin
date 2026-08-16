@@ -378,6 +378,21 @@
           }
         }
       }
+    ],
+    "grammars": [
+      {
+        "language": "lsl",
+        "scopeName": "source.lsl",
+        "path": "./data/lsl.tmlanguage.json"
+      }
+    ],
+    "languages": [
+      {
+        "id": "lsl",
+        "aliases": ["lsl","LSL"],
+        "extensions": [".lsl"],
+        "configuration": "./data/lsl_language_config.json"
+      }
     ]
   },
   "scripts": {

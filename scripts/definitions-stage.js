@@ -12,6 +12,7 @@ const requiredArtifacts = [
     "secondlife.d.luau",
     "secondlife.docs.json",
     "secondlife_selene.yml",
+    "lsl.tmlanguage.json",
 ];
 
 function walk(dir, out) {
