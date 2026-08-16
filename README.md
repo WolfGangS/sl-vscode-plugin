@@ -52,7 +52,7 @@ Use this link - https://marketplace.visualstudio.com/items?itemName=lindenlab.sl
 Or
 1. Open VS Code
 2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "Second Life VSCode Plugin"
+3. Search for "Second Life VSCode Plugin" (Check the publisher is Linden Lab)
 4. Click Install
 
 ### Manual Installation
@@ -72,8 +72,7 @@ Or
 2. **Open the folder in VS Code**
 3. **Start scripting** with preprocessing features!
 
-Note that SLua typechecking/linting will not work properly yet.
-For that to work, you'll need to also follow the instructions in
+Note that for typechecking/linting or highlighting you should look at the
 [Recommended Extensions](#recommended-extensions) and [Using with Second Life Viewer](#using-with-second-life-viewer) below.
 
 ### Basic Include Example (LSL)
@@ -401,8 +400,14 @@ Comprehensive guides available in the `doc/` directory:
 For enhanced language support and features, install these language server extensions:
 
 **For SLua/Luau files:**
-- **Selene** (`kampfkarren.selene-vscode`) - Lua linter and language support
+
+Expected
 - **Luau Language Server** (`johnnymorganz.luau-lsp`) - Luau language server
+
+Optional
+- **Selene** (`kampfkarren.selene-vscode`) - Lua linter and language support
+- **StyLua** (`johnnymorganz.stylua`) - Lua code formatter
+
 
 Note that SLua typechecking/linting files are not included with this plugin, and need to be downloaded from the viewer.
 You will get errors like:
@@ -412,11 +417,13 @@ TypeError: Unknown global 'll'; consider assigning to it first
 until you also follow the instructions in [Using with Second Life Viewer](#using-with-second-life-viewer) above.
 
 **For LSL files:**
-- **LSL Language Server** (such as `sekkmer.vscode-lsl-lsp`) - LSL language support with diagnostics
 
-**Additional Extensions for Enhanced Development:**
-- **StyLua** (`johnnymorganz.stylua`) - Lua code formatter
-- **VSCode LSL** (`vrtlabs.vscode-lsl`) - Alternative LSL language support
+**One** of the following extensions for further lsl support.
+- An **LSL Language Server** such as one of these:
+  - **LSL Language Server** (`jyaoma.lsl-lsp`)
+  - **LSL LSP** (`sekkmer.vscode-lsl-lsp`)
+- **VSCode LSL** (`vrtlabs.vscode-lsl`)
+
 
 **Note**: These extensions are optional but recommended for the best development experience.
 The preprocessor and viewer integration features work independently of these language servers.
