@@ -53,7 +53,7 @@ import { HostInterface } from "./interfaces/hostinterface";
 import { SyncedFileDecorator } from "./vscode/SyncedFileDecorator";
 import { ObjectContentService } from "./vscode/objectcontentservice";
 import { ObjectPinStore } from "./vscode/objectpinstore";
-import { SL_SCHEME, SL_AUTHORITY, displayName, itemUri } from "./vscode/objectcontentprovider";
+import { SL_SCHEME, SL_AUTHORITY, displayName, itemUri, languageForItem } from "./vscode/objectcontentprovider";
 
 /** PERM_MODIFY bit from viewer LLPermissions */
 const PERM_MODIFY = 0x4000;
@@ -867,11 +867,16 @@ export class SynchService implements vscode.Disposable {
 
         const fullName = displayName(item);           // e.g. "My Script.luau"
         const di = fullName.lastIndexOf('.');
-        if (di < 0) return null;
+        if (di < 0) {
+            if(item.type == "notecard") {
+                return {scriptName: item.name, scriptId: uri.toString(), extension: "txt", language: "txt", item};
+            }
+            return null;
+        }
 
         const scriptName = fullName.slice(0, di);     // "My Script"
         const extension = fullName.slice(di + 1).toLowerCase(); // "luau"
-        const language: ScriptLanguage = extension === 'lsl' ? 'lsl' : 'luau';
+        const language = languageForItem(item);
 
         return { scriptName, scriptId: uri.toString(), extension, language, item };
     }
