@@ -35,12 +35,23 @@
         }
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "secondLifeExplorer",
+          "title": "Second Life",
+          "icon": "icons/sllogo.svg"
+        }
+      ]
+    },
     "views": {
-      "explorer": [
+      "secondLifeExplorer": [
         {
           "type": "webview",
           "id": "slInworldExplorer",
-          "name": "Second Life (Inworld)"
+          "icon": "icons/sllogo.svg",
+          "name": "Second Life (Inworld)",
+          "when": "config.slVscodeEdit.enabled"
         }
       ]
     },
