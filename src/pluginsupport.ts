@@ -91,7 +91,7 @@ export class SelenePlugin extends BasePlugin {
             let seleneToml: any = {};
             seleneToml = (await host?.readTOML(tomlPath)) || {};
             const fullConfig = resolveUri(configPath, `${basename}`);
-            const relativeConfig = vscode.workspace.asRelativePath(vscode.Uri.parse(fullConfig as string));
+            const relativeConfig = vscode.workspace.asRelativePath(vscode.Uri.parse(fullConfig as string), false);
             seleneToml.std = "luau+" + relativeConfig;
             saved = await host.writeTOML(tomlPath, seleneToml);
         }
@@ -159,7 +159,8 @@ export class LuaLSPPlugin extends BasePlugin {
         } else {
             await vscode.workspace.fs.writeFile(vscode.Uri.parse(fullPath as string), Buffer.from(defs, "utf8"));
         }
-        return vscode.Uri.parse(fullPath as string).fsPath;
+        const path = vscode.Uri.parse(fullPath as string);
+        return vscode.workspace.asRelativePath(path, false);
     }
 
     private async saveLuauLSPConstantDefs(
@@ -188,7 +189,9 @@ export class LuaLSPPlugin extends BasePlugin {
         } else {
             await vscode.workspace.fs.writeFile(vscode.Uri.parse(fullPath as string), Buffer.from(slua_constants.join("\n"), "utf8"));
         }
-        return vscode.Uri.parse(fullPath as string).fsPath;
+
+        const path = vscode.Uri.parse(fullPath as string);
+        return vscode.workspace.asRelativePath(path, false);
     }
 
     private async saveLuauLSPDocs(
@@ -203,7 +206,8 @@ export class LuaLSPPlugin extends BasePlugin {
         } else {
             await vscode.workspace.fs.writeFile(vscode.Uri.parse(fullPath as string), Buffer.from(docs, "utf8"));
         }
-        return vscode.Uri.parse(fullPath as string).fsPath;
+        const path = vscode.Uri.parse(fullPath as string);
+        return vscode.workspace.asRelativePath(path, false);
     }
 
     public async configureFromViewerCache(
