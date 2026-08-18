@@ -1,3 +1,5 @@
+import { Diagnostic } from "../viewereditwsclient";
+
 /**
  * @file objectcontentinterfaces.ts
  * Interfaces for object content publishing feature
@@ -178,7 +180,7 @@ export interface ObjectContentSaveResponse {
     prim_id?: string;
     item_id?: string;
     compiled?: boolean;        // Scripts only: true if compilation succeeded
-    errors?: string[];         // Scripts only: compiler diagnostics when compiled is false
+    diagnostics?: Diagnostic[]; // Scripts only: compiler diagnostics when compiled is false
     message?: string;
 }
 

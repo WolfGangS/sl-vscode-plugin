@@ -15,6 +15,7 @@ import {
     ObjectItemCreateParams,
     ScriptVM,
 } from "./objectcontentinterfaces";
+import type { Diagnostic } from "../viewereditwsclient";
 
 // ============================================
 // Constants
@@ -687,7 +688,10 @@ export class ObjectContentProvider implements vscode.FileSystemProvider, vscode.
                     }
 
                     if (result.compiled === false) {
-                        const diagnostics = (result.errors ?? []).slice(0, 5).join("\n");
+                        const diagnostics = (result.diagnostics ?? [])
+                            .slice(0, 5)
+                            .map((diagnostic: Diagnostic) => diagnostic.message)
+                            .join("\n");
                         const details = diagnostics.length > 0
                             ? `\n${diagnostics}`
                             : "";

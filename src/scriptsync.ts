@@ -37,6 +37,7 @@ interface TrackedLocalFile {
     kind: 'local';
     id: string;
     viewerDocument: vscode.TextDocument;
+    slUri?: vscode.Uri;
     watcher?: vscode.FileSystemWatcher;
     hash?: string;
 }
@@ -223,7 +224,22 @@ export class ScriptSync implements vscode.Disposable {
     }
 
     public isTrackingVirtualUri(uri: vscode.Uri): boolean {
-        return this.isTrackingId(uri.toString());
+        return this.fileMappings.some((mapping) =>
+            mapping.id === uri.toString() ||
+            (mapping.kind === 'local' &&
+             mapping.slUri?.toString() === uri.toString())
+        );
+    }
+
+    public setSlUriForId(id: string, uri: vscode.Uri): void {
+        const mapping = this.fileMappings.find(
+            (candidate): candidate is TrackedLocalFile =>
+                candidate.kind === 'local' && candidate.id === id
+        );
+        if (mapping)
+        {
+            mapping.slUri = uri;
+        }
     }
 
     public hasFilesToTrack() : boolean {
@@ -289,7 +305,7 @@ export class ScriptSync implements vscode.Disposable {
             return;
         }
 
-        const errors = message.errors || [];
+        const errors = message.diagnostics || [];
 
         // Walk through the errors returned from the viewer and map them back to a source file.
         const diagnosticList: {
@@ -391,7 +407,12 @@ export class ScriptSync implements vscode.Disposable {
 
     //#region Script Compilation and Runtime
     public async handleRuntimeError(message: RuntimeError): Promise<void> {
-        const errorMessage = `Runtime error on object ${message.object_name} (${message.object_id}): ${message.error}`;
+        const stackMessage = message.stack?.length
+            ? `\n\nStack trace:\n    ${message.stack.join("\n    ")}`
+            : "";
+        const errorMessage =
+            `Runtime error on object ${message.object_name} (${message.object_id}): ` +
+            `${message.error}${stackMessage}`;
 
         let line = message.line;
         let file: StringUri = vscodeUriToStringUri(this.masterDocument.uri);
@@ -431,9 +452,7 @@ export class ScriptSync implements vscode.Disposable {
         this.diagnosticSources.add(file);
         this.diagnosticCollection.set(fileUri, [diagnostic]);
 
-        const errorLog = errorMessage +
-            (message.stack ? `\nStack trace:\n    ${message.stack.join('\n    ')}` : '');
-        logError(errorLog);
+        logError(errorMessage);
 
     }
 

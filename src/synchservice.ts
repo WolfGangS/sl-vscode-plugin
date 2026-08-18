@@ -541,6 +541,7 @@ export class SynchService implements vscode.Disposable {
             features: {
                 live_sync: true,
                 error_reporting: true,
+                unified_diagnostics: true,
                 debugging: false,
                 breakpoints: false,
                 object_publish: true,
@@ -679,20 +680,53 @@ export class SynchService implements vscode.Disposable {
         }
     }
 
+    private findSyncBySlUri(uri: vscode.Uri): ScriptSync | undefined {
+        return [...this.activeSyncs.values()]
+            .find((sync) => sync.isTrackingVirtualUri(uri));
+    }
+
+    private runtimeItemUri(
+        item?: { root_id?: string; prim_id?: string; item_id?: string },
+    ): vscode.Uri | undefined {
+        if (!item?.root_id || !item.item_id) {
+            return undefined;
+        }
+
+        const itemPath = item.prim_id
+            ? `/${item.root_id}/${item.prim_id}/${item.item_id}`
+            : `/${item.root_id}/${item.item_id}`;
+
+        return vscode.Uri.from({
+            scheme: "sl",
+            authority: "objects",
+            path: itemPath,
+        });
+    }
+
     private onRuntimeDebug(message: RuntimeDebug): void {
-        const scriptId = message.script_id;
-        const sync = this.findSyncByScriptId(scriptId);
+        const itemUri = this.runtimeItemUri(message.item);
+        const sync =
+            (itemUri ? this.findSyncBySlUri(itemUri) : undefined) ||
+            (message.script_id
+                ? this.findSyncByScriptId(message.script_id)
+                : undefined);
         if (sync) {
             sync.handleRuntimeDebug(message);
         }
         else {
-            logInfo(`Debug message on object ${message.object_name} (${message.object_id}): ${message.message}`);
+            const debugMessage =
+                `Debug message on object ${message.object_name} (${message.object_id}): ${message.message}`;
+            logInfo(debugMessage);
         }
     }
 
     private onRuntimeError(message: RuntimeError): void {
-        const scriptId = message.script_id;
-        const sync = this.findSyncByScriptId(scriptId);
+        const itemUri = this.runtimeItemUri(message.item);
+        const sync =
+            (itemUri ? this.findSyncBySlUri(itemUri) : undefined) ||
+            (message.script_id
+                ? this.findSyncByScriptId(message.script_id)
+                : undefined);
 
         if (sync) {
             sync.handleRuntimeError(message);
@@ -722,6 +756,23 @@ export class SynchService implements vscode.Disposable {
                 .call("script.subscribe", subscribeMsg)
                 .then((response: ScriptSubscribeResponse) => {
                     if (response.success) {
+                        if (response.root_id && response.item_id) {
+                            const primId =
+                                response.object_id &&
+                                response.object_id !== response.root_id
+                                    ? response.object_id
+                                    : undefined;
+                            const itemPath = primId
+                                ? `/${response.root_id}/${primId}/${response.item_id}`
+                                : `/${response.root_id}/${response.item_id}`;
+                            const slUri = vscode.Uri.from({
+                                scheme: "sl",
+                                authority: "objects",
+                                path: itemPath,
+                            });
+                            sync.setSlUriForId(id, slUri);
+                        }
+
                         showStatusMessage(
                             `Subscribed to script ${masterName} for live syncing.`,
                         );
