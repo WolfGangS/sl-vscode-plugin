@@ -35,6 +35,8 @@ import {
     logDebug,
     logInfo,
     logWarning,
+    logRuntimeInfo,
+    logRuntimeError,
     VSCodeHost,
     closeTextDocument,
     vscodeUriToStringUri,
@@ -714,9 +716,12 @@ export class SynchService implements vscode.Disposable {
             sync.handleRuntimeDebug(message);
         }
         else {
-            const debugMessage =
-                `Debug message on object ${message.object_name} (${message.object_id}): ${message.message}`;
-            logInfo(debugMessage);
+            const label = message.channel === "owner_say"
+                ? "OWNER"
+                : "DEBUG";
+            logRuntimeInfo(
+                `${message.object_name} ${label}: ${message.message}`,
+            );
         }
     }
 
@@ -732,7 +737,9 @@ export class SynchService implements vscode.Disposable {
             sync.handleRuntimeError(message);
         }
         else {
-            logWarning(`Runtime error on object ${message.object_name}:${message.line}: ${message.error}`);
+            logRuntimeError(
+                `${message.object_name} ERROR: ${message.error}`,
+            );
         }
     }
 

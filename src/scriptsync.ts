@@ -21,6 +21,8 @@ import {
     errorLevelToSeverity,
     VSCodeHost,
     logInfo,
+    logRuntimeInfo,
+    logRuntimeError,
     logError
 } from "./utils";
 import { ScriptLanguage } from "./shared/languageservice";
@@ -411,8 +413,7 @@ export class ScriptSync implements vscode.Disposable {
             ? `\n\nStack trace:\n    ${message.stack.join("\n    ")}`
             : "";
         const errorMessage =
-            `Runtime error on object ${message.object_name} (${message.object_id}): ` +
-            `${message.error}${stackMessage}`;
+            `${message.object_name} ERROR: ${message.error}${stackMessage}`;
 
         let line = message.line;
         let file: StringUri = vscodeUriToStringUri(this.masterDocument.uri);
@@ -452,13 +453,17 @@ export class ScriptSync implements vscode.Disposable {
         this.diagnosticSources.add(file);
         this.diagnosticCollection.set(fileUri, [diagnostic]);
 
-        logError(errorMessage);
+        logRuntimeError(errorMessage);
 
     }
 
     public async handleRuntimeDebug(message: RuntimeDebug): Promise<void> {
-        const debugMessage = `Debug message on object ${message.object_name} (${message.object_id}): ${message.message}`;
-        logInfo(debugMessage);
+        const label = message.channel === "owner_say"
+            ? "OWNER"
+            : "DEBUG";
+        const debugMessage =
+            `${message.object_name} ${label}: ${message.message}`;
+        logRuntimeInfo(debugMessage);
     }
     //#endregion
 
