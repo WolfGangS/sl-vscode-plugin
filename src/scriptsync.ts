@@ -31,6 +31,7 @@ import { SynchService } from "./synchservice";
 import { IncludeInfo } from "./shared/parser";
 import { sha256 } from "js-sha256";
 import { getLanguageConfig, isProccessedLanguage, LanguageLexerConfig } from "./shared/lexer";
+import { ObjectInventoryItem } from "./vscode/objectcontentinterfaces";
 
 //====================================================================
 interface TrackedLocalFile {
@@ -46,6 +47,7 @@ interface TrackedVirtualFile {
     id: string;   // uri.toString() — stable unique key
     uri: vscode.Uri;
     hash?: string;
+    item?: ObjectInventoryItem;
 }
 
 type TrackedFile = TrackedLocalFile | TrackedVirtualFile;
@@ -140,7 +142,7 @@ export class ScriptSync implements vscode.Disposable {
 
         this.fileMappings.push(mapping);
 
-        console.log("Subscribeing.");
+        console.log(this.masterDocument.uri.toString(),"subscribing to", id);
         // on initial subscription, we need to generate an initial line mapping
         if (this.fileMappings.filter(m => m.kind === 'local').length === 1) {
             this.lineMappings = LineMapper.parseLineMappingsFromContent(
@@ -152,12 +154,13 @@ export class ScriptSync implements vscode.Disposable {
         return true;
     }
 
-    public subscribeVirtual(uri: vscode.Uri, viewerContent?: string): boolean {
+    public subscribeVirtual(uri: vscode.Uri, viewerContent?: string, item?: ObjectInventoryItem): boolean {
         const id = uri.toString();
         if (this.isTrackingId(id)) {
             return false; // already tracking
         }
-        this.fileMappings.push({ kind: 'virtual', id, uri });
+        console.log(this.masterDocument.uri.toString(),"subscribing to", id);
+        this.fileMappings.push({ kind: 'virtual', id, uri, item });
         if (viewerContent) {
             this.lineMappings = LineMapper.parseLineMappingsFromContent(viewerContent, this.language, new VSCodeHost());
         }
@@ -165,9 +168,8 @@ export class ScriptSync implements vscode.Disposable {
     }
 
     public unsubscribeById(id: string, close?: boolean): number {
-        const mapping = this.fileMappings.find((m) => m.id === id);
+        const mapping = this.unsubscribeInternal(id);
         if (mapping) {
-            this.fileMappings = this.fileMappings.filter((m) => m !== mapping);
             if (close) {
                 if (mapping.kind === 'local') {
                     closeTextDocument(mapping.viewerDocument);
@@ -179,6 +181,15 @@ export class ScriptSync implements vscode.Disposable {
             }
         }
         return this.fileMappings.length;
+    }
+
+    private unsubscribeInternal(id: string) : TrackedFile | undefined
+    {
+        const mapping = this.fileMappings.find((m) => m.id === id);
+        if (!mapping) return;
+        console.error(this.masterDocument.uri.toString(),"unsubscribing from",id);
+        this.fileMappings = this.fileMappings.filter((m) => m !== mapping);
+        return mapping;
     }
 
     public unsubscribeByFile(viewerFile: string, close?: boolean): number {
@@ -196,6 +207,17 @@ export class ScriptSync implements vscode.Disposable {
 
     public unsubscribeVirtualByUri(uri: vscode.Uri, close?: boolean): void {
         this.unsubscribeById(uri.toString(), close);
+    }
+
+    public updateVirtualItem(uri: vscode.Uri, item: ObjectInventoryItem): void {
+        const original = this.fileMappings.find(
+            (m): m is TrackedVirtualFile =>
+                m.kind === 'virtual' && m.item?.item_id === item.item_id,
+        );
+        if(!original) return;
+        const mapping = this.unsubscribeInternal(original.id);
+        if(!mapping) return;
+        this.subscribeVirtual(uri,undefined,item);
     }
 
     public evictVirtualMappingsForObject(object_id: string): void {
@@ -224,6 +246,27 @@ export class ScriptSync implements vscode.Disposable {
 
     public isTrackingVirtualUri(uri: vscode.Uri): boolean {
         return this.isTrackingId(uri.toString());
+    }
+
+    public isTrackingVirtualItem(item: ObjectInventoryItem): boolean {
+        return this.fileMappings.some(
+            (m): m is TrackedVirtualFile =>
+                m.kind === 'virtual' && m.item?.item_id === item.item_id,
+        );
+    }
+
+    public isTrackingVirtualItemInObject(object_id: string) : boolean {
+        return this.fileMappings.some(
+            (m): m is TrackedVirtualFile =>
+                m.kind === "virtual" && m.id.includes(object_id)
+        );
+    }
+
+    public getTrackedVirtualItemsInObject(object_id: string) : TrackedVirtualFile[] {
+        return this.fileMappings.filter(
+            (m): m is TrackedVirtualFile =>
+                m.kind === "virtual" && m.id.includes(object_id)
+        )
     }
 
     public hasFilesToTrack() : boolean {

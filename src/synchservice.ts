@@ -51,7 +51,7 @@ import { ScriptSync } from "./scriptsync";
 import { getLanguageConfig } from "./shared/lexer";
 import { HostInterface } from "./interfaces/hostinterface";
 import { SyncedFileDecorator } from "./vscode/SyncedFileDecorator";
-import { ObjectContentService } from "./vscode/objectcontentservice";
+import { ObjectContentChangeEvent, ObjectContentService, ObjectTreeChangeEvent } from "./vscode/objectcontentservice";
 import { ObjectPinStore } from "./vscode/objectpinstore";
 import { SL_SCHEME, SL_AUTHORITY, displayName, itemUri } from "./vscode/objectcontentprovider";
 
@@ -173,6 +173,18 @@ export class SynchService implements vscode.Disposable {
             this.initializeSyntax();
         });
 
+        const onViewerDidChangeContent = ObjectContentService.getInstance().onDidChangeContent(
+            (e: ObjectContentChangeEvent) => {
+                this.onViewerDidChangeContent(e);
+            }
+        );
+
+        const onViewerDidChangeObjects = ObjectContentService.getInstance().onDidChangeObjects(
+            (e: ObjectTreeChangeEvent) => {
+                this.onViewerDidChangeObjects(e);
+            }
+        )
+
         // TODO: Figure out why restart isn't working on the luau-lsp server
         // TODO: Bug when prepping language syntax on download
         // const syntaxInit = this.initializeSyntax();
@@ -186,6 +198,8 @@ export class SynchService implements vscode.Disposable {
         this.disposables.push(onDidChangeWindowState);
         this.disposables.push(onDidChangeActiveTextEditor);
         this.disposables.push(vscode.window.registerFileDecorationProvider(this.syncedFileDecorator));
+        this.disposables.push(onViewerDidChangeContent);
+        this.disposables.push(onViewerDidChangeObjects);
 
         const launchDoc = vscode.window.activeTextEditor?.document
 
@@ -372,7 +386,7 @@ export class SynchService implements vscode.Disposable {
         const sync = await this.getOrCreateSync(masterEditor.document, parsed.language);
         // openTextDocument guarantees readFile has completed for virtual fs documents
         const loadedDoc = await vscode.workspace.openTextDocument(slDocument.uri);
-        sync.subscribeVirtual(slDocument.uri, loadedDoc.getText());
+        sync.subscribeVirtual(slDocument.uri, loadedDoc.getText(), parsed.item);
         SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, slDocument);
         this.syncedFileDecorator.refresh(masterEditor.document.uri);
         logInfo(
@@ -1210,6 +1224,34 @@ export class SynchService implements vscode.Disposable {
             // this event, if so we can assume the viewer launched us
             this.lastActiveChange = Date.now();
             this.activeSync = syncs.pop();
+        }
+    }
+
+    private onViewerDidChangeContent(e: ObjectContentChangeEvent): void {
+        const objectcontentservice = ObjectContentService.getInstance();
+        const item = objectcontentservice.getItem(e.object_id,e.prim_id,e.item_id);
+        if(!item)return;
+        const uri = itemUri(e.object_id, e.prim_id, displayName(item));
+        for(const sync of this.activeSyncs.values()) {
+            if(sync.isTrackingVirtualItem(item)) {
+                sync.updateVirtualItem(uri,item);
+            }
+        }
+    }
+
+    private onViewerDidChangeObjects(e: ObjectTreeChangeEvent): void {
+        const objectContentService = ObjectContentService.getInstance();
+        for(const sync of this.activeSyncs.values()) {
+            if(!sync.isTrackingVirtualItemInObject(e.object_id)) continue;
+            const mappings = sync.getTrackedVirtualItemsInObject(e.object_id);
+            for(const mapping of mappings) {
+                if(!mapping.item) continue;
+                const newItem = objectContentService.getItemInObject(e.object_id, undefined, mapping.item.item_id)
+                if(newItem) {
+                    const uri = itemUri(newItem.object_id, newItem.prim_id, displayName(newItem.item));
+                    sync.updateVirtualItem(uri, newItem.item);
+                }
+            }
         }
     }
     //#endregion
