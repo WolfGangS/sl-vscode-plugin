@@ -966,7 +966,11 @@ export class SynchService implements vscode.Disposable {
         let prim_id: string | null = null;
         let item_id: string | undefined;
 
-        if (pathSegments.length >= 2 && isUuidSegment(pathSegments[0])) {
+        if (
+            pathSegments.length >= 2 &&
+            isUuidSegment(pathSegments[0]) &&
+            isUuidSegment(pathSegments[1])
+        ) {
             prim_id = pathSegments[0];
             item_id = pathSegments[1];
         }

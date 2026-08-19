@@ -657,7 +657,7 @@ Debug message notification sent by the viewer during script execution.
 ```typescript
 interface RuntimeDebug {
   /** Deprecated: use item.item_id when available. */
-  script_id: string;
+  script_id?: string;
   object_id: string;
   prim_id?: string;
   item_id?: string;

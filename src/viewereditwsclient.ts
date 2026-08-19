@@ -164,8 +164,8 @@ export interface Diagnostic {
 }
 
 export interface CompilationResult {
-    /** @deprecated Use diagnostics instead. */
-    script_id: string; // Optional script ID for which the result applies
+    /** @deprecated Retained during migration to item-based routing. */
+    script_id: string; // Script ID for which the result applies
     success: boolean;
     running: boolean;
     diagnostics?: Diagnostic[];

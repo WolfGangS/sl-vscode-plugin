@@ -1,4 +1,4 @@
-import { Diagnostic } from "../viewereditwsclient";
+import type { Diagnostic } from "../viewereditwsclient";
 
 /**
  * @file objectcontentinterfaces.ts
