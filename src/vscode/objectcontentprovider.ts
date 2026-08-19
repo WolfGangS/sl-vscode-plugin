@@ -16,6 +16,7 @@ import {
     ScriptVM,
 } from "./objectcontentinterfaces";
 import type { Diagnostic } from "../viewereditwsclient";
+import { ScriptLanguage } from "../shared/languageservice";
 
 // ============================================
 // Constants
@@ -307,12 +308,17 @@ export function itemUri(
 /** Map item subtype to the appropriate file extension for display */
 function extensionForItem(item: ObjectInventoryItem): string {
     if (item.type === "notecard") return ""; // no synthetic extension; user-supplied extension stays in the name
-    return item.subtype === 1 ? ".luau" : ".lsl";
+    return `.${languageForItem(item)}`;
 }
 
 /** Returns the display filename (name + synthetic extension) */
 export function displayName(item: ObjectInventoryItem): string {
     return item.name + extensionForItem(item);
+}
+
+export function languageForItem(item: ObjectInventoryItem) : ScriptLanguage {
+    if(item.type == "notecard") return "txt";
+    return item.subtype === 1 ? "luau" : "lsl";
 }
 
 /**

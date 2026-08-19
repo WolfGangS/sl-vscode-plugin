@@ -24,9 +24,6 @@ jobs:
     - name: Install dependencies
       run: npm install
 
-    - name: Install autobuild
-      run: npm run bootstrap:autobuild
-
     - name: Sync definition artifacts
       run: npm run definitions:sync
 
@@ -60,9 +57,6 @@ jobs:
 
     - name: Install dependencies
       run: npm install
-
-    - name: Install autobuild
-      run: npm run bootstrap:autobuild
 
     - name: Sync definition artifacts
       run: npm run definitions:sync

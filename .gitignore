@@ -12,3 +12,4 @@ node_modules
 /data/lua_keywords.xml
 /data/secondlife.d.luau
 /data/secondlife.docs.json
+.resources

@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const repoRoot = path.join(__dirname, "..");
-const packagesRoot = path.join(repoRoot, ".autobuild", "packages");
+const resourcesRoot = path.join(repoRoot, ".resources");
 const outputDir = path.join(repoRoot, "data");
 
 const requiredArtifacts = [
@@ -28,16 +28,28 @@ function walk(dir, out) {
     }
 }
 
+function candidateNames(targetName) {
+    const ext = path.extname(targetName);
+    const base = path.basename(targetName, ext);
+    const names = [targetName];
+    if (!base.endsWith("_pretty")) {
+        names.push(`${base}_pretty${ext}`);
+    }
+    return names;
+}
+
 function findArtifactByName(rootDir, targetName) {
     const files = [];
     walk(rootDir, files);
-    const matches = files
-        .filter((filePath) => path.basename(filePath).toLowerCase() === targetName.toLowerCase())
-        .sort((a, b) => a.localeCompare(b));
-    if (matches.length === 0) {
-        return null;
+    for (const candidate of candidateNames(targetName)) {
+        const matches = files
+            .filter((filePath) => path.basename(filePath).toLowerCase() === candidate.toLowerCase())
+            .sort((a, b) => a.localeCompare(b));
+        if (matches.length > 0) {
+            return matches[0];
+        }
     }
-    return matches[0];
+    return null;
 }
 
 function copyFile(src, dest) {
@@ -46,8 +58,8 @@ function copyFile(src, dest) {
 }
 
 function stageArtifacts() {
-    if (!fs.existsSync(packagesRoot)) {
-        console.error(`Missing autobuild packages directory: ${packagesRoot}`);
+    if (!fs.existsSync(resourcesRoot)) {
+        console.error(`Missing resources directory: ${resourcesRoot}`);
         console.error("Run: npm run definitions:fetch");
         process.exit(1);
     }
@@ -56,7 +68,7 @@ function stageArtifacts() {
     const resolved = [];
 
     for (const artifactName of requiredArtifacts) {
-        const sourcePath = findArtifactByName(packagesRoot, artifactName);
+        const sourcePath = findArtifactByName(resourcesRoot, artifactName);
         if (!sourcePath) {
             missing.push(artifactName);
             continue;

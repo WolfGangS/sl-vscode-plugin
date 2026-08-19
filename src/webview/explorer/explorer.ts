@@ -565,6 +565,7 @@ function renderItem(object_id: string, prim_id: string, item: InventoryItem): st
     const isScript = item.type === "script";
     const iconClass = item.type === "notecard" ? "file-icon-notecard" : (item.subtype === 1 ? "file-icon-script-luau" : "file-icon-script-lsl");
     const label = itemDisplayName(item);
+    const nameLabel = item.name;
     const uri = itemUri(object_id, prim_id, item);
     const canModify = !item.permissions || (item.permissions.owner & PERM_MODIFY) !== 0;
     const permIcons = permissionIcons(item);
@@ -580,11 +581,12 @@ function renderItem(object_id: string, prim_id: string, item: InventoryItem): st
              data-type="${item.type}"
              data-subtype="${item.subtype ?? 0}"
              data-vm="${item.vm ?? ""}"
+             data-name="${item.name}"
              data-can-modify="${canModify}">
             <div class="node-header item-row"
                  title="${[label, typeLabel, item.description].filter(Boolean).join('\n')}">
                 <span class="file-icon ${iconClass}"></span>
-                <span class="label">${escapeHtml(label)}</span>
+                <span class="label">${escapeHtml(nameLabel)}</span>
                 ${permIcons ? `<span class="perm-icons">${permIcons}</span>` : ""}
                 ${isScript ? `<span class="running-indicator${item.running ? " active" : ""}"></span>` : ""}
                 ${isScript ? `<button class="action-btn toggle-run" data-running="${item.running ?? false}" title="${item.running ? "Stop script" : "Start script"}">${item.running ? "&#9632;" : "&#9654;"}</button>` : ""}
@@ -991,7 +993,7 @@ function beginRenameItem(itemEl: HTMLElement): void {
     const item_id   = itemEl.dataset["item"]!;
     const header    = itemEl.querySelector<HTMLElement>(".node-header")!;
     const labelEl   = header.querySelector<HTMLElement>(".label")!;
-    const currentName = labelEl.textContent ?? "";
+    const currentName = itemEl.dataset["name"] ?? (labelEl.textContent ?? "");
 
     const input = document.createElement("input");
     input.className = "inline-name-input";
