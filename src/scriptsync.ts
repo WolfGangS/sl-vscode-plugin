@@ -27,8 +27,8 @@ import {
 } from "./utils";
 import { ScriptLanguage } from "./shared/languageservice";
 import { CompilationResult, Diagnostic, RuntimeDebug, RuntimeError } from "./viewereditwsclient";
-import { StringUri, uriEquals } from "./interfaces/hostinterface";
-import { vscodeUriToStringUri } from "./utils";
+import { resolveUri, StringUri, uriDirname, uriEquals } from "./interfaces/hostinterface";
+import { stringUriToVscodeUri, vscodeUriToStringUri } from "./utils";
 import { SynchService } from "./synchservice";
 import { IncludeInfo } from "./shared/parser";
 import { sha256 } from "js-sha256";
@@ -337,14 +337,16 @@ export class ScriptSync implements vscode.Disposable {
     //#region Diagnostics
     public clearDiagnostics(): void {
         this.diagnosticSources.forEach((source) => {
-            this.diagnosticCollection.delete(vscode.Uri.parse(source));
+            this.diagnosticCollection.delete(
+                this.diagnosticSourceToVscodeUri(source as StringUri),
+            );
         });
         this.diagnosticSources.clear();
     }
 
     public addDiagnostics(diagnosticsMap: { [source: string]: vscode.Diagnostic[] }): void {
         Object.entries(diagnosticsMap).forEach(([filePath, diagnostics]) => {
-            const fileUri = vscode.Uri.parse(filePath);
+            const fileUri = this.diagnosticSourceToVscodeUri(filePath as StringUri);
 
             const oldList = this.diagnosticCollection.get(fileUri) || [];
             const newList = [...oldList, ...diagnostics];
@@ -354,6 +356,22 @@ export class ScriptSync implements vscode.Disposable {
             console.log(`Displayed ${diagnostics.length} errors for ${path.basename(fileUri.fsPath)}`);
         });
 
+    }
+
+    private diagnosticSourceToVscodeUri(source: StringUri): vscode.Uri {
+        if (source === "input-0" || source === "<unknown>") {
+            return this.masterDocument.uri;
+        }
+
+        if (/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(source)) {
+            return stringUriToVscodeUri(source);
+        }
+
+        const masterDirectory = uriDirname(
+            vscodeUriToStringUri(this.masterDocument.uri),
+        );
+        const resolvedSource = resolveUri(masterDirectory, source);
+        return stringUriToVscodeUri(resolvedSource);
     }
 
     public async handleCompilationResult(message: CompilationResult): Promise<void> {
@@ -385,9 +403,14 @@ export class ScriptSync implements vscode.Disposable {
                 if (mapping) {
                     line = mapping.line;
                     file = mapping.source;
-                    document = vscode.workspace.textDocuments.find(doc =>
-                        uriEquals(vscodeUriToStringUri(doc.uri), mapping.source)
-                    );
+                    document = vscode.workspace.textDocuments.find((doc) =>
+                    {
+                        try {
+                            return uriEquals(vscodeUriToStringUri(doc.uri), mapping.source);
+                        } catch {
+                            return false;
+                        }
+                    });
                 }
             }
 
@@ -439,8 +462,13 @@ export class ScriptSync implements vscode.Disposable {
                     line = mapping.line;
                     file = mapping.source;
                     document = vscode.workspace.textDocuments.find((doc) =>
-                        uriEquals(vscodeUriToStringUri(doc.uri), mapping.source)
-                    );
+                    {
+                        try {
+                            return uriEquals(vscodeUriToStringUri(doc.uri), mapping.source);
+                        } catch {
+                            return false;
+                        }
+                    });
                 }
             }
 
