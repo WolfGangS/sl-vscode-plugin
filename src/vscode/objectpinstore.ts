@@ -10,6 +10,7 @@ import { rootUri, SL_AUTHORITY, SL_SCHEME } from "./objectcontentprovider";
 const PIN_FILE_VERSION = 1;
 const PIN_FILE_NAME = "sl-object-pins.json";
 const PIN_DIR_NAME = ".vscode";
+const PIN_SUBDIR_NAME = "sl-vscode-plugin";
 
 export interface PinnedObjectRecord {
     uri: string;
@@ -141,7 +142,7 @@ export class ObjectPinStore {
             logDebug("[ObjectPinStore] No file-based workspace folder found while saving pins.");
             return;
         }
-        const pinDirUri = vscode.Uri.joinPath(workspaceRoot, PIN_DIR_NAME);
+        const pinDirUri = vscode.Uri.joinPath(workspaceRoot, PIN_DIR_NAME, PIN_SUBDIR_NAME);
         await vscode.workspace.fs.createDirectory(pinDirUri);
         await vscode.workspace.fs.writeFile(pinFileUri, Buffer.from(serialized, "utf8"));
     }
@@ -264,7 +265,7 @@ export class ObjectPinStore {
         if (root === null) {
             return null;
         }
-        return vscode.Uri.joinPath(root, PIN_DIR_NAME, PIN_FILE_NAME);
+        return vscode.Uri.joinPath(root, PIN_DIR_NAME, PIN_SUBDIR_NAME, PIN_FILE_NAME);
     }
 
     private getWorkspaceRootUri(): vscode.Uri | null {
