@@ -282,10 +282,17 @@ window.addEventListener("message", (event: MessageEvent) => {
             render();
             break;
 
-        case "connectionState":
-            state.connected = message.payload["connected"] as boolean;
+        case "connectionState": {
+            const nowConnected = message.payload["connected"] as boolean;
+            if (nowConnected && !state.connected)
+            {
+                // Clear any selection carried over from before this connection.
+                state.focusedId = undefined;
+            }
+            state.connected = nowConnected;
             render();
             break;
+        }
 
         case "updateItem":
             updateItemRunningState(
