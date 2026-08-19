@@ -35,6 +35,7 @@ import { sha256 } from "js-sha256";
 import { getLanguageConfig, isProccessedLanguage, LanguageLexerConfig } from "./shared/lexer";
 import { ObjectInventoryItem } from "./vscode/objectcontentinterfaces";
 
+
 //====================================================================
 export interface ScriptIdentity {
     rootId: string;
