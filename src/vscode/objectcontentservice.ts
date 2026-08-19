@@ -15,6 +15,7 @@ import {
     InventoryChanges,
     ScriptVM,
 } from "./objectcontentinterfaces";
+import { displayName, itemUri } from "./objectcontentprovider";
 
 // ============================================
 // Event Types
@@ -314,6 +315,32 @@ export class ObjectContentService implements vscode.Disposable {
         this._onDidChangeScriptVm.fire({ object_id, prim_id, item_id, vm: vmTyped });
     }
 
+    getItemInObject(object_id: string, prim_id: string|undefined, item_id: string) : {object_id:string,prim_id:string,item:ObjectInventoryItem}|undefined {
+        const entry = this.objects.get(object_id);
+        if(!entry) return undefined;
+        if(prim_id == object_id) {
+            const item = entry.object.inventory.find(i => i.item_id == item_id);
+            if(!item) return undefined;
+            return {object_id,prim_id:object_id,item};
+        }
+        if(prim_id) {
+            const link = (entry.object.linked_objects ?? []).find(l => l.link_id == prim_id);
+            if(!link) return undefined;
+            const item = link.inventory.find(i => i.item_id == item_id);
+            if(!item) return undefined;
+            return {object_id,prim_id,item};
+        }
+        const objectItem = entry.object.inventory.find(i => i.item_id == item_id);
+        if(objectItem) {
+            return {object_id,prim_id:object_id,item:objectItem};
+        }
+        for(const link of entry.object.linked_objects ?? []) {
+            const linkItem = link.inventory.find(i => i.item_id == item_id);
+            if(linkItem) return {object_id, prim_id:link.link_id, item:linkItem};
+        }
+        return undefined;
+    }
+
     // ============================================
     // Content Cache
     // ============================================
@@ -349,6 +376,31 @@ export class ObjectContentService implements vscode.Disposable {
 
     isContentDirty(object_id: string, item_id: string): boolean {
         return this.objects.get(object_id)?.contentCache.get(item_id)?.dirty ?? false;
+    }
+
+    getParentsOfInventoryItem(item_id: string) : string[]|undefined {
+        for (const [object_id, entry] of this.objects) {
+            for (const inventory of entry.object.inventory ?? []) {
+                if (inventory.item_id === item_id) {
+                    return [object_id];
+                }
+            }
+            for (const linkedObject of entry.object.linked_objects ?? []) {
+                if (linkedObject.inventory?.some(i => i.item_id === item_id)) {
+                    return [object_id, linkedObject.link_id];
+                }
+            }
+        }
+        return undefined;
+    }
+
+
+    getUriForInventoryItem(item: ObjectInventoryItem) : vscode.Uri|undefined {
+        const parents = this.getParentsOfInventoryItem(item.item_id);
+        if (!parents || parents.length < 1) return undefined;
+        const root = parents[0];
+        const prim = parents.length > 1 ? parents[1] : root;
+        return itemUri(root, prim, displayName(item));
     }
 
     // ============================================
