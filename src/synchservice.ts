@@ -49,7 +49,7 @@ import {
     CommandListResponse,
 } from "./viewereditwsclient";
 import { ScriptLanguage, LanguageService } from "./shared/languageservice";
-import { ScriptSync } from "./scriptsync";
+import { ScriptIdentity, ScriptSync } from "./scriptsync";
 import { getLanguageConfig } from "./shared/lexer";
 import { HostInterface } from "./interfaces/hostinterface";
 import { SyncedFileDecorator } from "./vscode/SyncedFileDecorator";
@@ -60,7 +60,20 @@ import { SL_SCHEME, SL_AUTHORITY, displayName, itemUri } from "./vscode/objectco
 /** PERM_MODIFY bit from viewer LLPermissions */
 const PERM_MODIFY = 0x4000;
 
-type ParsedTempFile = { scriptName: string; scriptId: string; extension: string, language: ScriptLanguage, item?: ObjectInventoryItem };
+type ParsedTempFile = {
+    scriptName: string;
+    scriptId: string;
+    extension: string;
+    language: ScriptLanguage;
+    item?: ObjectInventoryItem;
+    rootId?: string;
+    primId?: string | null;
+    itemId?: string;
+};
+
+function isUuidSegment(segment: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(segment);
+}
 
 export class SynchService implements vscode.Disposable {
     // Tracks all active sync relationships, keyed by master file uri.toString()
@@ -374,7 +387,23 @@ export class SynchService implements vscode.Disposable {
         const sync = await this.getOrCreateSync(masterEditor.document, parsed.language);
         // openTextDocument guarantees readFile has completed for virtual fs documents
         const loadedDoc = await vscode.workspace.openTextDocument(slDocument.uri);
-        sync.subscribeVirtual(slDocument.uri, loadedDoc.getText());
+        if (!parsed.rootId || !parsed.itemId) {
+            logInfo(
+                `[setupSyncForSlUri] Missing canonical identity for "${slDocument.uri.toString()}"`,
+            );
+            return;
+        }
+
+        const identity: ScriptIdentity = {
+            rootId: parsed.rootId,
+            primId: parsed.primId ?? null,
+            itemId: parsed.itemId,
+        };
+        sync.subscribeVirtual(
+            slDocument.uri,
+            loadedDoc.getText(),
+            identity,
+        );
         SynchService.checkAndUpdateMasterDocumentInBackground(masterEditor, slDocument);
         this.syncedFileDecorator.refresh(masterEditor.document.uri);
         logInfo(
@@ -682,36 +711,42 @@ export class SynchService implements vscode.Disposable {
         }
     }
 
-    private findSyncBySlUri(uri: vscode.Uri): ScriptSync | undefined {
+    public findSyncByIdentity(identity: ScriptIdentity): ScriptSync | undefined {
         return [...this.activeSyncs.values()]
-            .find((sync) => sync.isTrackingVirtualUri(uri));
+            .find((sync) => sync.isTrackingIdentity(identity));
     }
 
-    private runtimeItemUri(
-        item?: { root_id?: string; prim_id?: string; item_id?: string },
-    ): vscode.Uri | undefined {
+    public findSyncByItemRef(
+        rootId: string,
+        primId: string,
+        itemId: string,
+    ): ScriptSync | undefined {
+        return this.findSyncByIdentity({
+            rootId,
+            primId: primId === rootId ? null : primId,
+            itemId,
+        });
+    }
+
+    private runtimeIdentity(
+        item?: { root_id?: string; prim_id?: string | null; item_id?: string },
+    ): ScriptIdentity | undefined {
         if (!item?.root_id || !item.item_id) {
             return undefined;
         }
 
-        const itemPath = item.prim_id
-            ? `/${item.root_id}/${item.prim_id}/${item.item_id}`
-            : `/${item.root_id}/${item.item_id}`;
-
-        return vscode.Uri.from({
-            scheme: "sl",
-            authority: "objects",
-            path: itemPath,
-        });
+        return {
+            rootId: item.root_id,
+            primId: item.prim_id ?? null,
+            itemId: item.item_id,
+        };
     }
 
     private onRuntimeDebug(message: RuntimeDebug): void {
-        const itemUri = this.runtimeItemUri(message.item);
-        const sync =
-            (itemUri ? this.findSyncBySlUri(itemUri) : undefined) ||
-            (message.script_id
-                ? this.findSyncByScriptId(message.script_id)
-                : undefined);
+        const identity = this.runtimeIdentity(message.item);
+        const sync = identity
+            ? this.findSyncByIdentity(identity)
+            : undefined;
         if (sync) {
             sync.handleRuntimeDebug(message);
         }
@@ -726,12 +761,10 @@ export class SynchService implements vscode.Disposable {
     }
 
     private onRuntimeError(message: RuntimeError): void {
-        const itemUri = this.runtimeItemUri(message.item);
-        const sync =
-            (itemUri ? this.findSyncBySlUri(itemUri) : undefined) ||
-            (message.script_id
-                ? this.findSyncByScriptId(message.script_id)
-                : undefined);
+        const identity = this.runtimeIdentity(message.item);
+        const sync = identity
+            ? this.findSyncByIdentity(identity)
+            : undefined;
 
         if (sync) {
             sync.handleRuntimeError(message);
@@ -764,20 +797,17 @@ export class SynchService implements vscode.Disposable {
                 .then((response: ScriptSubscribeResponse) => {
                     if (response.success) {
                         if (response.root_id && response.item_id) {
-                            const primId =
-                                response.object_id &&
-                                response.object_id !== response.root_id
-                                    ? response.object_id
-                                    : undefined;
-                            const itemPath = primId
-                                ? `/${response.root_id}/${primId}/${response.item_id}`
-                                : `/${response.root_id}/${response.item_id}`;
-                            const slUri = vscode.Uri.from({
-                                scheme: "sl",
-                                authority: "objects",
-                                path: itemPath,
-                            });
-                            sync.setSlUriForId(id, slUri);
+                            const identity: ScriptIdentity = {
+                                rootId: response.root_id,
+                                primId:
+                                    response.object_id &&
+                                    response.object_id !== response.root_id
+                                        ? response.object_id
+                                        : null,
+                                itemId: response.item_id,
+                            };
+                            sync.setIdentityForId(id, identity);
+
                         }
 
                         showStatusMessage(
@@ -915,12 +945,27 @@ export class SynchService implements vscode.Disposable {
         }
 
         const root_id = segments[0];
-        const lastSeg = segments[segments.length - 1];
+        const pathSegments = segments.slice(1);
+        const lastSeg = pathSegments[pathSegments.length - 1];
+
+        let prim_id: string | null = null;
+        let item_id: string | undefined;
+
+        if (pathSegments.length >= 2 && isUuidSegment(pathSegments[0])) {
+            prim_id = pathSegments[0];
+            item_id = pathSegments[1];
+        }
+        else {
+            item_id = pathSegments[0];
+        }
 
         // Always resolve name and type from the inventory record, never from the URI path.
         // The last segment may be a UUID (itemUri) or a display name (Explorer) — both are
         // matched against the service inventory.
-        const item = SynchService.findSlInventoryItem(root_id, lastSeg);
+        const item = SynchService.findSlInventoryItem(
+            root_id,
+            item_id ?? lastSeg,
+        );
         if (!item) return null;
 
         const fullName = displayName(item);           // e.g. "My Script.luau"
@@ -931,7 +976,16 @@ export class SynchService implements vscode.Disposable {
         const extension = fullName.slice(di + 1).toLowerCase(); // "luau"
         const language: ScriptLanguage = extension === 'lsl' ? 'lsl' : 'luau';
 
-        return { scriptName, scriptId: uri.toString(), extension, language, item };
+        return {
+            scriptName,
+            scriptId: uri.toString(),
+            extension,
+            language,
+            item,
+            rootId: root_id,
+            primId: prim_id,
+            itemId: item.item_id,
+        };
     }
 
     private static findSlInventoryItem(

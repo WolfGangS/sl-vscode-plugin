@@ -82,6 +82,9 @@ export function activate(context: vscode.ExtensionContext): void {
     const objectContentProvider = new ObjectContentProvider(
         objectContentService,
         () => synchService.getWebSocket(),
+        (rootId, primId, itemId, diagnostics) =>
+            synchService.findSyncByItemRef(rootId, primId, itemId)
+                ?.handleSaveDiagnostics(diagnostics),
     );
     context.subscriptions.push(
         vscode.workspace.registerFileSystemProvider(SL_SCHEME, objectContentProvider, {

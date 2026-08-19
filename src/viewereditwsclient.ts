@@ -172,8 +172,6 @@ export interface CompilationResult {
 }
 
 export interface RuntimeDebug {
-    /** @deprecated Use item.item_id and item.root_id instead. */
-    script_id?: string;
     object_id: string;
     /** @deprecated Use item.prim_id instead. */
     prim_id?: string;
@@ -186,8 +184,6 @@ export interface RuntimeDebug {
 }
 
 export interface RuntimeError {
-    /** @deprecated Use item.item_id and item.root_id instead. */
-    script_id?: string;
     object_id: string;
     /** @deprecated Use item.prim_id instead. */
     prim_id?: string;
@@ -208,7 +204,7 @@ export interface RuntimeError {
 
 export interface ItemRef {
     root_id: string;
-    prim_id?: string;
+    prim_id?: string | null;
     item_id?: string;
     name?: string;
     language?: "lsl" | "luau";

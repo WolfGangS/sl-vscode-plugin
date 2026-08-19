@@ -26,7 +26,7 @@ import {
     logError
 } from "./utils";
 import { ScriptLanguage } from "./shared/languageservice";
-import { CompilationResult, RuntimeDebug, RuntimeError } from "./viewereditwsclient";
+import { CompilationResult, Diagnostic, RuntimeDebug, RuntimeError } from "./viewereditwsclient";
 import { StringUri, uriEquals } from "./interfaces/hostinterface";
 import { vscodeUriToStringUri } from "./utils";
 import { SynchService } from "./synchservice";
@@ -35,11 +35,17 @@ import { sha256 } from "js-sha256";
 import { getLanguageConfig, isProccessedLanguage, LanguageLexerConfig } from "./shared/lexer";
 
 //====================================================================
+export interface ScriptIdentity {
+    rootId: string;
+    primId: string | null;
+    itemId: string;
+}
+
 interface TrackedLocalFile {
     kind: 'local';
     id: string;
     viewerDocument: vscode.TextDocument;
-    slUri?: vscode.Uri;
+    identity?: ScriptIdentity;
     watcher?: vscode.FileSystemWatcher;
     hash?: string;
 }
@@ -48,6 +54,7 @@ interface TrackedVirtualFile {
     kind: 'virtual';
     id: string;   // uri.toString() — stable unique key
     uri: vscode.Uri;
+    identity: ScriptIdentity;
     hash?: string;
 }
 
@@ -155,12 +162,21 @@ export class ScriptSync implements vscode.Disposable {
         return true;
     }
 
-    public subscribeVirtual(uri: vscode.Uri, viewerContent?: string): boolean {
+    public subscribeVirtual(
+        uri: vscode.Uri,
+        viewerContent: string | undefined,
+        identity: ScriptIdentity,
+    ): boolean {
         const id = uri.toString();
         if (this.isTrackingId(id)) {
             return false; // already tracking
         }
-        this.fileMappings.push({ kind: 'virtual', id, uri });
+        this.fileMappings.push({
+            kind: 'virtual',
+            id,
+            uri,
+            identity,
+        });
         if (viewerContent) {
             this.lineMappings = LineMapper.parseLineMappingsFromContent(viewerContent, this.language, new VSCodeHost());
         }
@@ -225,22 +241,22 @@ export class ScriptSync implements vscode.Disposable {
         );
     }
 
-    public isTrackingVirtualUri(uri: vscode.Uri): boolean {
+    public isTrackingIdentity(identity: ScriptIdentity): boolean {
         return this.fileMappings.some((mapping) =>
-            mapping.id === uri.toString() ||
-            (mapping.kind === 'local' &&
-             mapping.slUri?.toString() === uri.toString())
+            mapping.identity?.rootId === identity.rootId &&
+            mapping.identity.primId === identity.primId &&
+            mapping.identity.itemId === identity.itemId
         );
     }
 
-    public setSlUriForId(id: string, uri: vscode.Uri): void {
+    public setIdentityForId(id: string, identity: ScriptIdentity): void {
         const mapping = this.fileMappings.find(
             (candidate): candidate is TrackedLocalFile =>
                 candidate.kind === 'local' && candidate.id === id
         );
         if (mapping)
         {
-            mapping.slUri = uri;
+            mapping.identity = identity;
         }
     }
 
@@ -354,6 +370,58 @@ export class ScriptSync implements vscode.Disposable {
             }
             diagnosticList[file].push(diagnostic);
 
+        });
+
+        this.addDiagnostics(diagnosticList);
+    }
+
+    public handleSaveDiagnostics(diagnostics: Diagnostic[]): void {
+        const diagnosticList: {
+            [source: string]: vscode.Diagnostic[];
+        } = {};
+
+        diagnostics.forEach((error) => {
+            let line = error.row;
+            let file: StringUri = vscodeUriToStringUri(this.masterDocument.uri);
+            let document: vscode.TextDocument | undefined = this.masterDocument;
+
+            if (this.lineMappings) {
+                const mapping = LineMapper.convertAbsoluteLineToSource(
+                    this.lineMappings,
+                    error.row,
+                );
+                if (mapping) {
+                    line = mapping.line;
+                    file = mapping.source;
+                    document = vscode.workspace.textDocuments.find((doc) =>
+                        uriEquals(vscodeUriToStringUri(doc.uri), mapping.source)
+                    );
+                }
+            }
+
+            line = Math.max(0, (line || 1) - 1);
+            const column = Math.max(0, (error.column || 1) - 1);
+            const lineText = document?.lineAt(
+                Math.min(line, document.lineCount - 1),
+            ).text;
+            const endColumn = lineText
+                ? (column < lineText.length ? column + 1 : lineText.length)
+                : column + 1;
+
+            const diagnostic = new vscode.Diagnostic(
+                new vscode.Range(
+                    new vscode.Position(line, column),
+                    new vscode.Position(line, endColumn),
+                ),
+                error.message,
+                errorLevelToSeverity(error.level),
+            );
+            diagnostic.source = "Second Life Compile";
+
+            if (!diagnosticList[file]) {
+                diagnosticList[file] = [];
+            }
+            diagnosticList[file].push(diagnostic);
         });
 
         this.addDiagnostics(diagnosticList);
