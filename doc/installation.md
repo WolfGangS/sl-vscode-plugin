@@ -85,6 +85,11 @@ Code Tight Integration** is enabled and VS Code is not already running, the
 viewer launches VS Code. The selected object's editable inventory becomes
 visible in the **Second Life** Explorer view.
 
+When in Tight Integration mode, opening the script in the viewer's Script Editor
+and selecting "Edit" will also start the Script Editor Server, launch Visual
+Studio Code if it is not already running, add the object to the explorer, and open
+the script for editing.
+
 ## Troubleshooting
 
 ### VS Code does not connect to the viewer

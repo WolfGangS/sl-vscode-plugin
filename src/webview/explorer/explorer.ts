@@ -1125,7 +1125,7 @@ function showObjectMenu(anchor: MenuAnchor, objectEl: HTMLElement): void {
         },
         { separator: true },
         {
-            label: "Unpublish",
+            label: "Unexplore",
             action: () => vscode.postMessage({ command: "unpublishObject", payload: { object_id } }),
         },
         { separator: true },
@@ -1136,7 +1136,7 @@ function showObjectMenu(anchor: MenuAnchor, objectEl: HTMLElement): void {
         },
         { separator: true },
         {
-            label: "Teleport To...",
+            label: "Teleport To",
             disabled: !viewerCommands.has("viewer.teleport"),
             action: () => vscode.postMessage({ command: "teleportToObject", payload: { object_id } }),
         },

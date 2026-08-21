@@ -14,6 +14,7 @@ import { ConfigService, configPrefix } from "./configservice";
 import {
     VSCodeHost,
     getOutputChannel,
+    getRuntimeOutputChannel,
     showOutputChannel,
     logInfo,
     logDebug,
@@ -371,8 +372,9 @@ export function activate(context: vscode.ExtensionContext): void {
         })
     );
 
-    // Register output channel for disposal
+    // Register output channels for disposal so they appear in the VS Code Output panel.
     context.subscriptions.push(getOutputChannel());
+    context.subscriptions.push(getRuntimeOutputChannel());
 
     if (!hasWorkspace()) {
         showErrorMessage("Second Life Scripting Extension: No workspace is opened.\nPlease open a folder in VSCode to enable full functionality.");

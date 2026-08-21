@@ -3,8 +3,8 @@
 ## Overview
 
 The Second Life VS Code Plugin brings Second Life scripting into Visual Studio
-Code. It supports both **LSL (Linden Scripting Language)** and **SLua (Second
-Life Lua)** and connects the editor directly to the Second Life viewer.
+Code. It supports both **LSL (Linden Scripting Language)** and **Lua** and
+connects the editor directly to the Second Life viewer.
 
 The plugin also supports workspace-based source files, preprocessing, viewer
 compilation diagnostics, script runtime output, and language tooling for Second
@@ -52,7 +52,7 @@ the WebSocket connection.
 
 Enable **VS Code Tight Integration** to allow the viewer and VS Code to work
 together as an external editing pair. This setting is required for the viewer
-to use the plugin's integration workflow. Tight integration also activates the
+to use the plugin's integration workflow. Tight integration also enables the
 viewer WebSocket connection.
 
 ### WebSocket synchronization
@@ -110,7 +110,7 @@ settings use the `slVscodeEdit.` prefix.
 | `slVscodeEdit.preprocessor.options` | String | Not set | Provides preprocessor options. |
 | `slVscodeEdit.preprocessor.includePaths` | Array of strings | `[".", "./include/", "**/include/"]` | Lists paths searched for include files. |
 | `slVscodeEdit.preprocessor.maxIncludeDepth` | Number | `5` | Limits nested `#include` and `require()` processing. Allowed range: 1–50. |
-| `slVscodeEdit.preprocessor.constantsInSLua` | Boolean | `false` | Enables predefined LSL-style preprocessor constants in SLua. |
+| `slVscodeEdit.preprocessor.constantsInSLua` | Boolean | `false` | Enables predefined LSL-style preprocessor constants in Lua. |
 | `slVscodeEdit.preprocessor.lsl.switchStatements` | Boolean | `false` | Enables LSL switch statement preprocessing. |
 
 ### Network
@@ -142,7 +142,9 @@ either of these viewer-side actions.
 ![Starting the Script Editor Server with Explore in IDE](images/Build%20Floater.png)
 
 Selecting **Explore in IDE** starts the server, launches VS Code, and begins the
-workflow for the selected object. The viewer can then communicate with the
+workflow for the selected object. The viewer first checks for an already
+connected editor; if none is found, it launches VS Code and instructs the
+plugin to connect to the viewer. The viewer can then communicate with the
 plugin over WebSocket.
 
 The plugin connects as a WebSocket client when you select the plug icon in the
@@ -229,3 +231,76 @@ When you save the linked workspace file, the plugin invokes the preprocessor
 and sends the processed result to the viewer. The viewer then compiles the
 resulting script. For details about includes and requires, macros, conditionals,
 and other preprocessor behavior, see the [Preprocessor Guide](preprocessor-guide.md).
+
+## Pinning Objects
+
+You can pin explored objects in the **Second Life** view so they are restored
+when the plugin reconnects. Pinned objects are remembered across reconnects,
+which makes it easier to return to previously explored content without having
+to re-explore it each time.
+
+To pin an object, select the pin icon next to it in the **Second Life**
+explorer. Pinned objects remain in the restored list until you unpin them. This
+is useful when you want the same object set to be available after reconnecting
+the viewer and plugin.
+
+If the viewer cannot find a restored object, it appears grayed out while the
+plugin is connected. If you do not have permission to modify the object, it is
+shown in red and displays the **No Modify** badge.
+
+## Context Menus
+
+### Item Context Menu
+
+![Item context menu in the Second Life explorer](images/Item%20Contex%201.png)
+
+Right-click an item in the **Second Life** explorer to open its context menu.
+The available actions depend on the item type, but common actions include:
+
+- **Open**: Opens the selected file in the editor.
+- **Start / Stop**: Starts or stops a script.
+- **Restart**: Resets a running script.
+- **Select VM**: Lets the user choose the virtual machine the script will
+  compile against, such as LSL, Mono, or Luau.
+- **Rename...**: Changes the item's name. For scripts, changing the file
+  extension switches the language between LSL and Lua, while the extension
+  itself is not shown in the displayed item name. For notecards, the
+  extension is part of the item's visible name.
+- **Delete**: Permanently deletes the item from the object's inventory in the
+  world.
+
+Use the item context menu to quickly open, manage, or remove explored content
+without navigating back to the build floater in the viewer.
+
+### Object Context Menu
+
+![Object context menu in the Second Life explorer](images/Context%20Menu%20Objects.png)
+
+Right-click an object in the **Second Life** explorer to open its context menu.
+The available actions include:
+
+- **Rename...**: Changes the object's name.
+- **New File...**: Prompts for a filename. If the name ends with `.lsl`, the
+  new item is created as an LSL script; if it ends with `.luau`, it is created
+  as a Luau script; otherwise, it is created as a notecard.
+- **Unexplore**: Removes the selected object from publication in the viewer.
+- **Save Back to Contents**: If the object was rezzed directly from another object,
+  it is saved back to that rezzing object's inventory.
+- **Teleport To**: Teleports the agent in the viewer to the object's
+  location.
+- **Zoom In**: Focuses the viewer camera on the selected object.
+
+Use the object context menu to manage the selected object directly from the
+explorer without leaving the workspace flow.
+
+## Message Capture
+
+![Message routing diagram](images/message_routing.png)
+
+Message Capture forwards messages from explored objects that are sent on the
+**DEBUG_CHANNEL**, emitted with owner say (`llOwnerSay()` / `print()`), or
+raised as runtime errors. You can view the message stream in VS Code by opening
+the **Output** tab and selecting **Second Life** from the dropdown.
+
+This lets you monitor script output and runtime issues as part of the same
+object-exploration workflow used for editing and testing.
