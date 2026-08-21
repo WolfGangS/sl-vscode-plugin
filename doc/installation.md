@@ -48,8 +48,7 @@ Install the **LSL Language Server** extension by Jeremy Fairelander
 The extension is enabled by default. The standard viewer connection does not
 require changing the extension's WebSocket port setting.
 
-Start Visual Studio Code after installation. The viewer does not start or
-activate the extension automatically.
+Start Visual Studio Code after installation, unless you plan to use **VS Code Tight Integration**. With Tight Integration enabled, selecting **Explore in IDE** can launch VS Code automatically.
 
 ## Enable Viewer Integration
 
@@ -58,8 +57,7 @@ activate the extension automatically.
 3. Enable **Enable external editor WebSocket sync**.
 4. Enable **VS Code Tight Integration**.
 
-The viewer starts its local WebSocket service when external editor sync is
-enabled. Leave Visual Studio Code running while you use viewer integration.
+The setting enables the viewer-side WebSocket synchronization. Start the Script Editor Server using one of the actions below.
 
 ## Start the Script Editor Server
 
