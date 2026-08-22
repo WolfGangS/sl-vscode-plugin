@@ -22,6 +22,7 @@ export enum ConfigKey {
   NetworkDisconnectDelayMs = 'network.disconnectDelayMs',
   NetworkDisposeDelayMs = 'network.disposeDelayMs',
   NetworkWebsocketPort = 'network.websocketPort',
+  NetworkWinePrefixPath = 'network.winePrefixPath',
   Preprocessor = 'preprocessor',
   PreprocessorEnable = 'preprocessor.enable',
   PreprocessorOptions = 'preprocessor.options',

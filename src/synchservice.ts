@@ -40,6 +40,7 @@ import {
     VSCodeHost,
     closeTextDocument,
     vscodeUriToStringUri,
+    resolveProtonPath,
 } from "./utils";
 import { maybe } from "./shared/sharedutils"; // TODO: migrate needed utilities from sharedutils if required
 import { CommandRegistry } from "./commandregistry";
@@ -565,9 +566,10 @@ export class SynchService implements vscode.Disposable {
         if (message.challenge) {
             // The challenge is the name of a file, we just need to read the contents
             // and return it to the server.
-            await fs.promises.readFile(message.challenge, 'utf8').then((data: string) => {
+            const challengePath = resolveProtonPath(message.challenge);
+            await fs.promises.readFile(challengePath, 'utf8').then((data: string) => {
                 challengeResponse = data;
-                console.log("Received challenge from viewer:", message.challenge);
+                console.log("Received challenge from viewer:", challengePath);
             });
         }
 
@@ -1539,10 +1541,11 @@ export class SynchService implements vscode.Disposable {
         if (!list.success) { return; }
 
         try {
-            const files = await fs.promises.readdir(list.temp_dir);
+            const tempDir = resolveProtonPath(list.temp_dir);
+            const files = await fs.promises.readdir(tempDir);
             const match = files.find(f => f.includes(scriptId));
             if (match) {
-                const tempPath = path.join(list.temp_dir, match);
+                const tempPath = path.join(tempDir, match);
                 await vscode.window.showTextDocument(vscode.Uri.file(tempPath));
                 // onOpenTextDocument fires and handles the normal subscribe + sync flow
             } else {

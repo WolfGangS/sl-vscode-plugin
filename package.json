@@ -377,6 +377,11 @@
             "type": "number",
             "default": 1000,
             "description": "Delay in milliseconds before disposing resources after session disconnect"
+          },
+          "slVscodeEdit.network.winePrefixPath": {
+            "type": "string",
+            "default": "",
+            "description": "Path to your Wine/Proton prefix directory on Linux. When set, Windows paths reported by the viewer (e.g. C:\\...) are translated to their Linux equivalents inside this prefix (e.g. {prefix}/drive_c/...). Leave empty to disable path translation. Example: /home/user/SecondLife/Prefix/pfx"
           }
         }
       }
