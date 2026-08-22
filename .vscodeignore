@@ -9,6 +9,8 @@ src/**
 packages/*/src/**
 packages/*/node_modules/**
 packages/*/doc/**
+packages/*/test/**
+packages/*/dist/test/**
 out/test/**
 data/dev/**
 doc/dev/**

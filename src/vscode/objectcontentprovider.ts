@@ -16,7 +16,7 @@ import {
     ScriptVM,
     ViewerEditWSClient,
 } from "#sl-ide-ws-client";
-import { ScriptLanguage } from "../shared/languageservice";
+import { ScriptLanguage } from "#sl-script-preprocessor";
 
 // ============================================
 // Constants

@@ -14,7 +14,8 @@
     "packages/*"
   ],
   "imports": {
-    "#sl-ide-ws-client": "./packages/sl-ide-ws-client/dist/index.js"
+    "#sl-ide-ws-client": "./packages/sl-ide-ws-client/dist/index.js",
+    "#sl-script-preprocessor": "./packages/sl-script-preprocessor/dist/index.js"
   },
   "categories": [
     "Programming Languages",
@@ -400,7 +401,7 @@
     "definitions:sync": "npm run definitions:fetch && npm run definitions:stage",
     "definitions:validate": "node scripts/definitions-validate.js",
     "bootstrap:deps": "npm ci && npm run definitions:sync",
-    "compile:packages": "npm run build --workspace @secondlife/sl-ide-ws-client",
+    "compile:packages": "npm run build --workspace @secondlife/sl-ide-ws-client && npm run build --workspace @secondlife/sl-script-preprocessor",
     "compile": "npm run compile:packages && tsc -p . && tsc -p tsconfig.webview.json && npm run copy-webview-assets && npm run copy-test-data",
     "copy-test-data": "node scripts/copy-test-data.js",
     "copy-webview-assets": "node scripts/copy-webview-assets.js",
