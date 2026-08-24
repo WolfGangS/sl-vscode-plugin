@@ -48,6 +48,8 @@ export interface ObjectInventoryItem {
     vm?: ScriptVM;
     /** For scripts only: whether the script is currently running */
     running?: boolean;
+    /** For scripts only: whether the script has a runtime fault */
+    faulted?: boolean;
     permissions?: ItemPermissions;
     creator_id?: string;       // Creator UUID
 }
@@ -127,6 +129,7 @@ export interface LinkedObjectChanges {
     modified?: {
         link_id: string;
         link_name?: string;
+        link_description?: string;
         // Can be either full replacement (array) or delta changes (object)
         inventory?: InventoryChanges | ObjectInventoryItem[];
     }[];
@@ -134,12 +137,13 @@ export interface LinkedObjectChanges {
 
 /**
  * object.update — Viewer → Extension (notification)
- * Supports full replacement or delta-based updates.
- * If `changes` is present it takes precedence over full replacement fields.
+ * The viewer currently sends full replacements; the delta fields are reserved for the
+ * not-yet-implemented delta protocol.
  */
 export interface ObjectUpdateMessage {
     object_id: string;
     object_name?: string;
+    object_description?: string;
     // Full replacement
     inventory?: ObjectInventoryItem[];
     linked_objects?: LinkedObject[];
